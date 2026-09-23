@@ -102,7 +102,7 @@ export class PirateGame {
     this.visibleBounds = { left: 0, top: 0, right: config.arena.width, bottom: config.arena.height };
   }
 
-  async start(): Promise<void> {
+  async start(startPaused = false): Promise<void> {
     await this.app.init({
       width: this.config.arena.width,
       height: this.config.arena.height,
@@ -142,6 +142,7 @@ export class PirateGame {
     document.addEventListener('visibilitychange', this.onVisibilityChange);
     this.app.ticker.add(this.update);
     this.active = true;
+    this.paused = startPaused;
     this.publishHud();
   }
 

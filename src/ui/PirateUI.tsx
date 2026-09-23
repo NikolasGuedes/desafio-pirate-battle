@@ -1,4 +1,5 @@
 import type { ComponentProps } from 'react';
+import { m } from 'motion/react';
 import { Button as BaseButton } from '@/components/ui/button';
 import { Card as BaseCard } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -10,12 +11,14 @@ export function Icon({ name }: { name: SpriteIcon }) {
   return <img className="sprite-icon" src={`/assets/png/retina/ui/${family}/icon_${name}.png`} alt="" draggable={false} />;
 }
 
-export function Button({ className, variant, ...props }: ComponentProps<typeof BaseButton>) {
-  return <BaseButton variant={variant} className={cn('pirate-button', (variant === 'secondary' || variant === 'link') && 'pirate-button-secondary', className)} {...props} />;
+export function Button({ className, variant, children, ...props }: ComponentProps<typeof BaseButton>) {
+  return <BaseButton {...props} asChild variant={variant} className={cn('pirate-button', (variant === 'secondary' || variant === 'link') && 'pirate-button-secondary', className)}>
+    <m.button whileHover={{ scale: 1.015 }} whileTap={{ scale: 0.97 }} transition={{ duration: 0.14, ease: 'easeOut' }}>{children}</m.button>
+  </BaseButton>;
 }
 
 export function RoundButton({ icon, className, ...props }: ComponentProps<typeof BaseButton> & { icon: SpriteIcon }) {
-  return <BaseButton type="button" className={cn('pirate-round', className)} {...props}><Icon name={icon} /></BaseButton>;
+  return <BaseButton {...props} asChild type="button" className={cn('pirate-round', className)}><m.button whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.9 }} transition={{ duration: 0.12, ease: 'easeOut' }}><Icon name={icon} /></m.button></BaseButton>;
 }
 
 export function Card({ className, ...props }: ComponentProps<typeof BaseCard>) {

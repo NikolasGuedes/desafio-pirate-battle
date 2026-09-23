@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
+import { AnimatePresence, m } from 'motion/react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { PirateGame } from '../game/PirateGame';
 import type { GameConfig } from '../game/config';
 import type { Control, GameResult, HudSnapshot } from '../game/types';
@@ -17,6 +18,7 @@ export function GameScreen({ config, onExit, onResult }: Props) {
   const [hud, setHud] = useState<HudSnapshot>({ health: 100, maxHealth: 100, score: 0, remainingSeconds: config.sessionDurationSeconds, enemyCount: 0, paused: false, playerRotation: 0, activeControls: [] });
   const [loading, setLoading] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [phase, setPhase] = useState<'loading' | 'countdown' | 'playing'>('loading');
 
   useEffect(() => {
     const host = hostRef.current;
@@ -42,7 +44,9 @@ export function GameScreen({ config, onExit, onResult }: Props) {
       if (event.matches) game.pause();
     };
     portraitQuery.addEventListener('change', pauseForPortrait);
-    void game.start().catch((cause: unknown) => {
+    void game.start(true).then(() => {
+      if (!disposed) setPhase('countdown');
+    }).catch((cause: unknown) => {
       if (!disposed) setError(cause instanceof Error ? cause.message : 'Could not load the game.');
     });
     return () => {
@@ -56,21 +60,26 @@ export function GameScreen({ config, onExit, onResult }: Props) {
   }, [config, onResult]);
 
   const hold = (control: Control, pressed: boolean) => gameRef.current?.setControl(control, pressed);
+  const beginMatch = useCallback(() => {
+    gameRef.current?.resume();
+    setPhase('playing');
+  }, []);
 
   return (
-    <main className="game-screen">
+    <main className="game-screen" data-phase={phase}>
       <header className="game-hud" aria-label="Match status">
         <div className="health-stat"><Icon name="heart" /><HullBar health={hud.health} maxHealth={hud.maxHealth} /></div>
         <div className="hud-counter" aria-label={`Score: ${hud.score}`}><Icon name="score" /><strong>{hud.score}</strong></div>
         <div className="hud-counter" aria-label={`Time remaining: ${formatTime(hud.remainingSeconds)}`}><Icon name="time" /><strong>{formatTime(hud.remainingSeconds)}</strong></div>
-        <RoundButton className="hud-button" icon="pause" onClick={() => gameRef.current?.togglePause()} aria-label="Pause game" />
+        <RoundButton className="hud-button" icon="pause" disabled={phase !== 'playing'} onClick={() => gameRef.current?.togglePause()} aria-label="Pause game" />
       </header>
 
       <div className="arena-frame">
         <div ref={hostRef} className="canvas-host" />
-        {loading < 1 && !error && <div className="game-overlay"><p>Loading fleet… {Math.round(loading * 100)}%</p></div>}
+        {phase === 'loading' && !error && <m.div className="game-overlay loading-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><span className="loading-wheel" aria-hidden="true" /><h2>Preparing the fleet</h2><p>Loading fleet… {Math.round(loading * 100)}%</p><div className="loading-track" aria-hidden="true"><m.span animate={{ width: `${Math.round(loading * 100)}%` }} transition={{ duration: 0.18 }} /></div></m.div>}
         {error && <div className="game-overlay"><h2>Loading failed</h2><p>{error}</p><Button size="lg" type="button" onClick={onExit}>Main Menu</Button></div>}
-        {hud.paused && !error && (
+        {phase === 'countdown' && !error && <MatchCountdown onComplete={beginMatch} />}
+        {phase === 'playing' && hud.paused && !error && (
           <div className="game-overlay" role="dialog" aria-modal="true" aria-labelledby="pause-title">
             <Card className="pause-panel">
             <h2 id="pause-title" aria-label="Game paused">Paused</h2>
@@ -87,19 +96,42 @@ export function GameScreen({ config, onExit, onResult }: Props) {
       <div className="touch-controls" aria-label="Touch game controls">
         <SteeringJoystick
           key={hud.paused ? 'paused' : 'active'}
-          disabled={hud.paused}
+          disabled={phase !== 'playing' || hud.paused}
           onChange={(throttle, steering) => gameRef.current?.setAnalogControl(throttle, steering)}
           onRelease={() => gameRef.current?.clearAnalogControl()}
         />
         <div className="touch-group touch-action-group">
-          <HoldButton label="Fire port broadside" icon="fire_left" iconRotation={hud.playerRotation} broadside="port" onHold={(pressed) => hold('fireLeft', pressed)} />
-          <HoldButton label="Fire front cannon" icon="fire_front" onHold={(pressed) => hold('fireFront', pressed)} />
-          <HoldButton label="Fire starboard broadside" icon="fire_right" iconRotation={hud.playerRotation} broadside="starboard" onHold={(pressed) => hold('fireRight', pressed)} />
+          <HoldButton disabled={phase !== 'playing'} label="Fire port broadside" icon="fire_left" iconRotation={hud.playerRotation} broadside="port" onHold={(pressed) => hold('fireLeft', pressed)} />
+          <HoldButton disabled={phase !== 'playing'} label="Fire front cannon" icon="fire_front" onHold={(pressed) => hold('fireFront', pressed)} />
+          <HoldButton disabled={phase !== 'playing'} label="Fire starboard broadside" icon="fire_right" iconRotation={hud.playerRotation} broadside="starboard" onHold={(pressed) => hold('fireRight', pressed)} />
         </div>
       </div>
       <KeyboardControls playerRotation={hud.playerRotation} activeControls={hud.activeControls} inGame />
     </main>
   );
+}
+
+const COUNTDOWN_WORDS = ['READY', 'SET', 'SHIP!'] as const;
+
+function MatchCountdown({ onComplete }: { readonly onComplete: () => void }) {
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (step === COUNTDOWN_WORDS.length - 1) onComplete();
+      else setStep((value) => value + 1);
+    }, step === COUNTDOWN_WORDS.length - 1 ? 720 : 620);
+    return () => window.clearTimeout(timer);
+  }, [onComplete, step]);
+  return <m.div className="game-overlay countdown-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+    <p>Battle stations</p>
+    <AnimatePresence mode="wait"><m.strong
+      key={COUNTDOWN_WORDS[step]}
+      initial={{ opacity: 0, scale: 0.65, y: 16 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 1.18, y: -10 }}
+      transition={{ duration: 0.22, ease: 'easeOut' }}
+    >{COUNTDOWN_WORDS[step]}</m.strong></AnimatePresence>
+  </m.div>;
 }
 
 function SteeringJoystick({ disabled, onChange, onRelease }: {
@@ -167,11 +199,12 @@ function SteeringJoystick({ disabled, onChange, onRelease }: {
   );
 }
 
-function HoldButton({ label, icon, iconRotation, broadside, onHold }: {
+function HoldButton({ label, icon, iconRotation, broadside, disabled = false, onHold }: {
   readonly label: string;
   readonly icon: SpriteIcon;
   readonly iconRotation?: number;
   readonly broadside?: 'port' | 'starboard';
+  readonly disabled?: boolean;
   readonly onHold: (pressed: boolean) => void;
 }) {
   return (
@@ -179,6 +212,7 @@ function HoldButton({ label, icon, iconRotation, broadside, onHold }: {
       className={`touch-button ${iconRotation === undefined ? '' : 'direction-aware'}`}
       icon={icon}
       type="button"
+      disabled={disabled}
       aria-label={label}
       data-broadside={broadside}
       style={iconRotation === undefined ? undefined : { '--ship-rotation': `${iconRotation}rad` } as CSSProperties}

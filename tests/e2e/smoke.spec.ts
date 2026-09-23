@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 test('opens the main menu with controls for the current device', async ({ page }, testInfo) => {
   await page.goto('/');
+  await expect(page.locator('.screen-transition')).toHaveAttribute('data-animated', 'false');
   await expect(page.getByRole('heading', { name: 'Pirate Battle' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Options' })).toBeVisible();
@@ -17,6 +18,7 @@ test('opens the main menu with controls for the current device', async ({ page }
 });
 
 test('requires landscape orientation and uses device-appropriate game controls', async ({ page }, testInfo) => {
+  test.setTimeout(45_000);
   await page.setViewportSize({ width: 360, height: 800 });
   await page.goto('/');
   if (testInfo.project.name === 'mobile-chromium') {
@@ -29,6 +31,7 @@ test('requires landscape orientation and uses device-appropriate game controls',
   await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Play' }).click();
+  await expect(page.locator('.screen-transition')).toHaveAttribute('data-animated', 'true');
   const movementControl = page.getByRole('button', { name: 'Movement joystick' });
   const actionControl = page.getByRole('button', { name: 'Fire starboard broadside' });
   if (testInfo.project.name === 'mobile-chromium') {
@@ -50,6 +53,7 @@ test('requires landscape orientation and uses device-appropriate game controls',
   }
 
   await expect(page.getByText('Loading fleet…')).toBeHidden();
+  await expect(page.locator('.game-screen')).toHaveAttribute('data-phase', 'playing', { timeout: 10_000 });
   const arena = page.locator('canvas[aria-label="Pirate Battle game arena"]');
   if (testInfo.project.name === 'mobile-chromium') {
     const joystickBox = await movementControl.boundingBox();
@@ -112,7 +116,10 @@ test('starts and pauses a match without console errors', async ({ page }) => {
   const arena = page.locator('canvas[aria-label="Pirate Battle game arena"]');
   await expect(arena).toBeVisible();
   await expect(arena).toHaveAttribute('data-scenario', /^(emerald-cay|twin-reefs|broken-atoll)$/);
-  await expect(page.getByText('Loading fleet…')).toBeHidden();
+  await expect(page.locator('.countdown-overlay')).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('.countdown-overlay strong')).toHaveText(/READY|SET|SHIP!/);
+  await expect(page.getByRole('button', { name: 'Pause game' })).toBeDisabled();
+  await expect(page.locator('.game-screen')).toHaveAttribute('data-phase', 'playing', { timeout: 10_000 });
   await page.keyboard.press('KeyP');
   await expect(page.getByRole('heading', { name: 'Game paused' })).toBeVisible();
   await page.getByRole('button', { name: 'Resume' }).click();
@@ -123,8 +130,10 @@ test('starts and pauses a match without console errors', async ({ page }) => {
 test('validates and persists game options', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Options' }).click();
+  await expect(page.locator('.screen-transition')).toHaveAttribute('data-animated', 'false');
   await page.getByLabel('Game session time').fill('30');
   await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.locator('.screen-transition')).toHaveAttribute('data-animated', 'false');
   await expect(page.getByText('Enter a whole number from 60 to 180.')).toBeVisible();
   await page.getByLabel('Game session time').fill('120');
   await page.getByLabel('Enemy spawn time').fill('8');
@@ -146,9 +155,10 @@ test('loads and paginates the mocked ranking', async ({ page }) => {
 });
 
 test('finishes, registers and restores a completed match', async ({ page }) => {
+  test.setTimeout(45_000);
   await page.goto('/?testDuration=1');
   await page.getByRole('button', { name: 'Play' }).click();
-  await expect(page.getByRole('heading', { name: 'Time is up!' })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole('heading', { name: 'Time is up!' })).toBeVisible({ timeout: 25_000 });
   await expect(page.getByText('Match registered successfully.')).toBeVisible();
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Time is up!' })).toBeVisible();

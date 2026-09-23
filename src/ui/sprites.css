@@ -17,6 +17,7 @@
   padding: 32px 16px;
   background: linear-gradient(#08212e55, #08212e55), url('/assets/ui_scene_background.png') center / cover fixed;
 }
+.screen-transition { width: 100%; min-height: 100svh; }
 .menu-card {
   min-width: 0;
   width: min(780px, 100%);
@@ -213,7 +214,13 @@
   position: absolute; right: 12px; bottom: 8px; left: 12px; z-index: 3;
   width: min(1120px, calc(100% - 32px)); margin: auto; text-align: center;
 }
-.game-keyboard-guide h2 { margin: 0 0 6px; color: #a8c3c8; font-size: 10px; letter-spacing: .12em; }
+.game-keyboard-guide h2 {
+  display: flex; align-items: center; justify-content: center;
+  width: max-content; min-height: 20px; margin: 0 auto 8px; padding: 3px 14px;
+  border: 1px solid #49677999; border-radius: 999px;
+  color: #d8e7e6; background: #071a26f2;
+  font-size: 10px; line-height: 1.2; letter-spacing: .12em;
+}
 .game-keyboard-guide .keyboard-command-list {
   grid-template-columns: repeat(10, minmax(0, 1fr));
   grid-template-rows: auto auto;
@@ -246,6 +253,19 @@
 }
 .game-keyboard-guide .keyboard-command[data-active="true"] kbd { border-color: #ffe09b; background: #3a2413; }
 .game-overlay { position: fixed; background: #06172488; padding: 12px; z-index: 10; }
+.loading-overlay, .countdown-overlay { color: #ffe8b6; background: #061724e8; }
+.loading-overlay h2 { margin: 4px 0 0; font-size: clamp(22px, 4vw, 42px); text-transform: uppercase; text-shadow: 0 3px 1px #091725; }
+.loading-overlay p { margin: 0; color: #bcd4d7; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+.loading-wheel {
+  width: 58px; height: 58px; margin: 0 auto 4px;
+  border: 6px solid #405865; border-top-color: #f5b84e; border-radius: 50%;
+  box-shadow: 0 0 18px #e49b3066;
+  animation: loading-wheel 850ms linear infinite;
+}
+.loading-track { width: min(320px, 68vw); height: 8px; margin-top: 4px; overflow: hidden; border: 1px solid #8b6739; border-radius: 999px; background: #102532; }
+.loading-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #d9852d, #ffd66d); }
+.countdown-overlay p { margin: 0; color: #bcd4d7; font-size: 12px; font-weight: 800; letter-spacing: .28em; text-transform: uppercase; }
+.countdown-overlay strong { display: block; min-width: min(500px, 80vw); color: #ffd77a; font-size: clamp(58px, 13vw, 150px); line-height: 1; text-align: center; text-shadow: 0 5px 0 #6d3418, 0 0 34px #e9a43b88; }
 .game-overlay:has(.pause-panel) { display: grid; place-items: center; place-content: normal; }
 .pause-panel { width: min(700px, 100%); padding: 64px 24px; min-height: 480px; justify-content: center; }
 .game-overlay .pirate-button { min-width: 0; }
@@ -259,8 +279,9 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .game-screen { padding-bottom: 142px; }
-  .arena-frame { width: min(100vw, calc((100svh - 154px) * 16 / 9)); }
+  .game-screen { padding-bottom: 170px; }
+  .arena-frame { width: min(100vw, calc((100svh - 182px) * 16 / 9)); }
+  .game-keyboard-guide { bottom: 12px; }
 }
 
 @media (orientation: portrait) and (max-width: 900px) and (hover: none) and (pointer: coarse) {
@@ -527,9 +548,12 @@
 @media (prefers-reduced-motion: reduce) {
   .pirate-button, .pirate-round { transition: none; }
   .orientation-phone { animation: none; transform: rotate(90deg); }
+  .loading-wheel { animation: none; }
 }
 
 @keyframes rotate-device {
   0%, 25% { transform: rotate(0deg); }
   60%, 100% { transform: rotate(90deg); }
 }
+
+@keyframes loading-wheel { to { transform: rotate(360deg); } }
