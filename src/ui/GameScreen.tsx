@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { PirateGame } from '../game/PirateGame';
 import type { GameConfig } from '../game/config';
 import type { Control, GameResult, HudSnapshot } from '../game/types';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { Pause } from 'lucide-react';
 
 interface Props {
   readonly config: GameConfig;
@@ -41,8 +44,8 @@ export function GameScreen({ config, onExit, onResult }: Props) {
   return (
     <main className="game-screen">
       <header className="game-hud" aria-label="Match status">
-        <button className="hud-button" type="button" onClick={() => gameRef.current?.togglePause()} aria-label="Pause game">Ⅱ</button>
-        <div className="health-stat"><span>Hull</span><progress max={hud.maxHealth} value={hud.health} /><strong>{hud.health}</strong></div>
+        <Button className="hud-button" size="icon-lg" type="button" onClick={() => gameRef.current?.togglePause()} aria-label="Pause game"><Pause /></Button>
+        <div className="health-stat"><span>Hull</span><Progress className="hull-progress" value={(hud.health / hud.maxHealth) * 100} aria-label={`${hud.health} hull points`} /><strong>{hud.health}</strong></div>
         <div><span>Score</span><strong>{hud.score}</strong></div>
         <div><span>Time</span><strong>{formatTime(hud.remainingSeconds)}</strong></div>
         <div className="enemy-stat"><span>Enemies</span><strong>{hud.enemyCount}</strong></div>
@@ -51,13 +54,13 @@ export function GameScreen({ config, onExit, onResult }: Props) {
       <div className="arena-frame">
         <div ref={hostRef} className="canvas-host" />
         {loading < 1 && !error && <div className="game-overlay"><p>Loading fleet… {Math.round(loading * 100)}%</p></div>}
-        {error && <div className="game-overlay"><h2>Loading failed</h2><p>{error}</p><button type="button" onClick={onExit}>Main Menu</button></div>}
+        {error && <div className="game-overlay"><h2>Loading failed</h2><p>{error}</p><Button size="lg" type="button" onClick={onExit}>Main Menu</Button></div>}
         {hud.paused && !error && (
           <div className="game-overlay" role="dialog" aria-modal="true" aria-labelledby="pause-title">
             <h2 id="pause-title">Game paused</h2>
             <p>Inputs were cleared. Resume when ready.</p>
-            <button type="button" onClick={() => gameRef.current?.resume()} autoFocus>Resume</button>
-            <button type="button" className="secondary" onClick={onExit}>Main Menu</button>
+            <Button size="lg" type="button" onClick={() => gameRef.current?.resume()} autoFocus>Resume</Button>
+            <Button size="lg" type="button" variant="secondary" onClick={onExit}>Main Menu</Button>
           </div>
         )}
       </div>
@@ -81,15 +84,17 @@ export function GameScreen({ config, onExit, onResult }: Props) {
 
 function HoldButton({ label, icon, onHold }: { readonly label: string; readonly icon: string; readonly onHold: (pressed: boolean) => void }) {
   return (
-    <button
+    <Button
       className="touch-button"
+      variant="secondary"
+      size="icon-lg"
       type="button"
       aria-label={label}
       onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); onHold(true); }}
       onPointerUp={() => onHold(false)}
       onPointerCancel={() => onHold(false)}
       onLostPointerCapture={() => onHold(false)}
-    >{icon}</button>
+    >{icon}</Button>
   );
 }
 

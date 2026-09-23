@@ -8,6 +8,8 @@ import type { GameResult } from '../game/types';
 import { GameScreen } from './GameScreen';
 import { OptionsScreen } from './OptionsScreen';
 import { RecordsPanel, type RecordsTab } from './RecordsPanel';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 
 type Screen = 'menu' | 'options' | 'game' | 'result';
 
@@ -51,19 +53,19 @@ export function App() {
 
   if (screen === 'result' && result) {
     const pending = registrationPending || Boolean(loadPendingMatch());
-    return <main className="app-shell"><section className="menu-card result-card" aria-labelledby="result-title">
+    return <main className="app-shell"><Card className="menu-card result-card" aria-labelledby="result-title">
       <p className="eyebrow">Match complete</p><h1 id="result-title">{result.endReason === 'time-expired' ? 'Time is up!' : 'Ship destroyed'}</h1>
       <dl className="result-stats"><div><dt>Final score</dt><dd>{result.score}</dd></div><div><dt>Time played</dt><dd>{Math.round(result.durationSeconds)}s</dd></div></dl>
       <p className={`save-status ${registrationError ? 'field-error' : ''}`} role="status">{registrationError ? 'Registration failed. Your result is safely stored.' : pending ? 'Saving match…' : 'Match registered successfully.'}</p>
-      {registrationError && <button type="button" className="retry-button" onClick={() => registerMatch(result)}>Try Registration Again</button>}
-      <div className="actions"><button type="button" onClick={startGame}>Play Again</button><button type="button" className="secondary" onClick={goToMenu}>Main Menu</button></div>
-    </section></main>;
+      {registrationError && <Button type="button" size="lg" className="retry-button" onClick={() => registerMatch(result)}>Try Registration Again</Button>}
+      <div className="actions"><Button type="button" size="lg" onClick={startGame}>Play Again</Button><Button type="button" size="lg" variant="secondary" onClick={goToMenu}>Main Menu</Button></div>
+    </Card></main>;
   }
 
-  return <main className="app-shell"><section className={`menu-card ${recordsTab ? 'menu-with-records' : ''}`} aria-labelledby="game-title">
+  return <main className="app-shell"><Card className={`menu-card ${recordsTab ? 'menu-with-records' : ''}`} aria-labelledby="game-title">
     <p className="eyebrow">Survive the pirate waters</p><img className="game-logo" src="/assets/png/default/ui/menu/title_pirate_battle.png" alt="Pirate Battle" /><h1 className="visually-hidden" id="game-title">Pirate Battle</h1><p className="subtitle">Outmaneuver enemy ships and rule the sea.</p>
-    {!recordsTab && <><div className="actions" aria-label="Main menu"><button type="button" onClick={startGame}>Play</button><button type="button" className="secondary" onClick={() => setScreen('options')}>Options</button></div><section className="instructions" aria-labelledby="controls-title"><h2 id="controls-title">Controls</h2><p><kbd>W</kbd> forward · <kbd>A</kbd>/<kbd>D</kbd> turn · <kbd>Space</kbd> fire</p><p><kbd>Q</kbd>/<kbd>E</kbd> broadsides · <kbd>P</kbd> pause</p></section></>}
-    <nav className="data-tabs" aria-label="Game records"><button type="button" className="text-button" onClick={() => setRecordsTab('ranking')}>Ranking</button><button type="button" className="text-button" onClick={() => setRecordsTab('history')}>Match History</button></nav>
+    {!recordsTab && <><div className="actions" aria-label="Main menu"><Button type="button" size="lg" onClick={startGame}>Play</Button><Button type="button" size="lg" variant="secondary" onClick={() => setScreen('options')}>Options</Button></div><section className="instructions" aria-labelledby="controls-title"><h2 id="controls-title">Controls</h2><p><kbd>W</kbd> forward · <kbd>A</kbd>/<kbd>D</kbd> turn · <kbd>Space</kbd> fire</p><p><kbd>Q</kbd>/<kbd>E</kbd> broadsides · <kbd>P</kbd> pause</p></section></>}
+    <nav className="data-tabs" aria-label="Game records"><Button type="button" variant="link" onClick={() => setRecordsTab('ranking')}>Ranking</Button><Button type="button" variant="link" onClick={() => setRecordsTab('history')}>Match History</Button></nav>
     {recordsTab && <RecordsPanel tab={recordsTab} playerId={playerId} onClose={() => setRecordsTab(null)} />}
-  </section></main>;
+  </Card></main>;
 }

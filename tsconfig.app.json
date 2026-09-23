@@ -8,6 +8,9 @@
     "skipLibCheck": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
+    "paths": {
+      "@/*": ["./src/*"]
+    },
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noUnusedLocals": true,

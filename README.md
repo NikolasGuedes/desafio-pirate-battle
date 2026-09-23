@@ -2,6 +2,16 @@
 
 A browser-based, top-down naval shooter built for the React & PixiJS challenge.
 
+## UI foundation
+
+The React interface uses Tailwind CSS v4 and local shadcn/ui components. Theme tokens live in `src/ui/styles.css`; generated components live in `src/components/ui`.
+
+Add another component only when it is needed:
+
+```bash
+npx shadcn@latest add <component>
+```
+
 ## Requirements
 
 - Node.js 22+
