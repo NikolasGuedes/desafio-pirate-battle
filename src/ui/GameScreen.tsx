@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { PirateGame } from '../game/PirateGame';
 import type { GameConfig } from '../game/config';
 import type { Control, GameResult, HudSnapshot } from '../game/types';
@@ -29,6 +29,15 @@ export function GameScreen({ config, onExit, onResult }: Props) {
     });
     gameRef.current = game;
     const portraitQuery = window.matchMedia('(orientation: portrait) and (max-width: 900px) and (hover: none) and (pointer: coarse)');
+    const coverQuery = window.matchMedia('(max-height: 500px) and (orientation: landscape) and (hover: none) and (pointer: coarse)');
+    const syncViewport = () => {
+      const { width, height } = host.getBoundingClientRect();
+      game.setViewportAspect(width / height, coverQuery.matches);
+    };
+    const viewportObserver = new ResizeObserver(syncViewport);
+    viewportObserver.observe(host);
+    coverQuery.addEventListener('change', syncViewport);
+    syncViewport();
     const pauseForPortrait = (event: MediaQueryListEvent) => {
       if (event.matches) game.pause();
     };
@@ -39,6 +48,8 @@ export function GameScreen({ config, onExit, onResult }: Props) {
     return () => {
       disposed = true;
       portraitQuery.removeEventListener('change', pauseForPortrait);
+      coverQuery.removeEventListener('change', syncViewport);
+      viewportObserver.disconnect();
       game.destroy();
       gameRef.current = null;
     };
@@ -74,12 +85,13 @@ export function GameScreen({ config, onExit, onResult }: Props) {
       </div>
 
       <div className="touch-controls" aria-label="Touch game controls">
-        <div className="touch-group">
-          <HoldButton label="Turn left" icon="turn_left" onHold={(pressed) => hold('left', pressed)} />
-          <HoldButton label="Forward" icon="forward" onHold={(pressed) => hold('forward', pressed)} />
-          <HoldButton label="Turn right" icon="turn_right" onHold={(pressed) => hold('right', pressed)} />
-        </div>
-        <div className="touch-group">
+        <SteeringJoystick
+          key={hud.paused ? 'paused' : 'active'}
+          disabled={hud.paused}
+          onChange={(throttle, steering) => gameRef.current?.setAnalogControl(throttle, steering)}
+          onRelease={() => gameRef.current?.clearAnalogControl()}
+        />
+        <div className="touch-group touch-action-group">
           <HoldButton label="Fire port broadside" icon="fire_left" iconRotation={hud.playerRotation} broadside="port" onHold={(pressed) => hold('fireLeft', pressed)} />
           <HoldButton label="Fire front cannon" icon="fire_front" onHold={(pressed) => hold('fireFront', pressed)} />
           <HoldButton label="Fire starboard broadside" icon="fire_right" iconRotation={hud.playerRotation} broadside="starboard" onHold={(pressed) => hold('fireRight', pressed)} />
@@ -87,6 +99,71 @@ export function GameScreen({ config, onExit, onResult }: Props) {
       </div>
       <KeyboardControls playerRotation={hud.playerRotation} activeControls={hud.activeControls} inGame />
     </main>
+  );
+}
+
+function SteeringJoystick({ disabled, onChange, onRelease }: {
+  readonly disabled: boolean;
+  readonly onChange: (throttle: number, steering: number) => void;
+  readonly onRelease: () => void;
+}) {
+  const padRef = useRef<HTMLDivElement>(null);
+  const activePointer = useRef<number | null>(null);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+
+  const reset = () => {
+    activePointer.current = null;
+    setPosition({ x: 0, y: 0 });
+    onRelease();
+  };
+  const visiblePosition = disabled ? { x: 0, y: 0 } : position;
+
+  const update = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const pad = padRef.current;
+    if (!pad || activePointer.current !== event.pointerId) return;
+    const bounds = pad.getBoundingClientRect();
+    const radius = bounds.width * 0.34;
+    let x = event.clientX - (bounds.left + bounds.width / 2);
+    let y = event.clientY - (bounds.top + bounds.height / 2);
+    const distance = Math.hypot(x, y);
+    if (distance > radius) {
+      x *= radius / distance;
+      y *= radius / distance;
+    }
+    const normalizedX = x / radius;
+    const normalizedY = y / radius;
+    const deadZone = 0.12;
+    const steering = Math.abs(normalizedX) < deadZone ? 0 : normalizedX;
+    const throttle = -normalizedY < deadZone ? 0 : Math.min(1, -normalizedY);
+    setPosition({ x, y });
+    onChange(throttle, steering);
+  };
+
+  return (
+    <div
+      ref={padRef}
+      className="steering-joystick"
+      role="button"
+      tabIndex={0}
+      aria-label="Movement joystick"
+      aria-disabled={disabled}
+      data-steering={Math.abs(visiblePosition.x) > 1 ? (visiblePosition.x < 0 ? 'left' : 'right') : 'center'}
+      onPointerDown={(event) => {
+        if (disabled || activePointer.current !== null) return;
+        activePointer.current = event.pointerId;
+        event.currentTarget.setPointerCapture(event.pointerId);
+        update(event);
+      }}
+      onPointerMove={update}
+      onPointerUp={reset}
+      onPointerCancel={reset}
+      onLostPointerCapture={() => { if (activePointer.current !== null) reset(); }}
+    >
+      <span className="joystick-direction joystick-direction-up">▲</span>
+      <span className="joystick-direction joystick-direction-left">‹</span>
+      <span className="joystick-direction joystick-direction-right">›</span>
+      <span className="joystick-knob" style={{ transform: `translate(${visiblePosition.x}px, ${visiblePosition.y}px)` }}><Icon name="forward" /></span>
+    </div>
   );
 }
 

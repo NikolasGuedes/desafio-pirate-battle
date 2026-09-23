@@ -5,9 +5,7 @@ interface Props {
 }
 
 const controls: ReadonlyArray<{ icon: SpriteIcon; label: string; description: string }> = [
-  { icon: 'forward', label: 'Forward', description: 'Hold to sail forward.' },
-  { icon: 'turn_left', label: 'Turn left', description: 'Hold to steer to port.' },
-  { icon: 'turn_right', label: 'Turn right', description: 'Hold to steer to starboard.' },
+  { icon: 'forward', label: 'Movement joystick', description: 'Drag up to sail and diagonally to steer while moving.' },
   { icon: 'fire_front', label: 'Front cannon', description: 'Fire straight ahead.' },
   { icon: 'fire_left', label: 'Port broadside', description: 'Fire from the ship’s left side.' },
   { icon: 'fire_right', label: 'Starboard broadside', description: 'Fire from the ship’s right side.' },

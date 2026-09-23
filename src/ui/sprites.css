@@ -177,6 +177,38 @@
 .touch-group { display: grid; grid-template-columns: repeat(3, 58px); gap: 4px; align-items: end; }
 .touch-group .touch-button { width: 58px; height: 58px; min-height: 58px; }
 .touch-group .touch-button:nth-child(2) { margin-bottom: 44px; }
+.steering-joystick {
+  position: relative;
+  width: 128px;
+  height: 128px;
+  flex: 0 0 128px;
+  border: 3px solid #d69034;
+  border-radius: 50%;
+  background: radial-gradient(circle, #173f50b8 0 31%, #0a2636dc 33% 67%, #173f50b8 69%);
+  box-shadow: inset 0 0 0 4px #6d3918aa, 0 5px 16px #0008;
+  touch-action: none;
+  user-select: none;
+  pointer-events: auto;
+}
+.steering-joystick[aria-disabled="true"] { opacity: .45; }
+.joystick-knob {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  margin: -27px;
+  border-radius: 50%;
+  background: url('/assets/png/retina/ui/controls/button_round_normal.png') center / contain no-repeat;
+  filter: drop-shadow(0 3px 4px #0008);
+  pointer-events: none;
+}
+.joystick-knob .sprite-icon { width: 45%; height: 45%; }
+.joystick-direction { position: absolute; color: #ffe6aa99; font-weight: 900; line-height: 1; pointer-events: none; }
+.joystick-direction-up { top: 8px; left: 50%; transform: translateX(-50%); font-size: 13px; }
+.joystick-direction-left { top: 50%; left: 10px; transform: translateY(-55%); font-size: 25px; }
+.joystick-direction-right { top: 50%; right: 10px; transform: translateY(-55%); font-size: 25px; }
 .game-keyboard-guide {
   position: absolute; right: 12px; bottom: 8px; left: 12px; z-index: 3;
   width: min(1120px, calc(100% - 32px)); margin: auto; text-align: center;
@@ -297,6 +329,8 @@
   .touch-group { grid-template-columns: repeat(3, 44px); gap: 2px; }
   .touch-group .touch-button { width: 44px; height: 44px; min-height: 44px; }
   .touch-group .touch-button:nth-child(2) { margin-bottom: 32px; }
+  .steering-joystick { width: 104px; height: 104px; flex-basis: 104px; }
+  .joystick-knob { width: 46px; height: 46px; margin: -23px; }
   .pause-panel { min-height: 300px; padding: 20px 8px; }
 }
 @media (max-height: 500px) and (orientation: landscape) {
@@ -415,13 +449,29 @@
   .result-card > .actions { display: grid; grid-template-columns: 1fr 1fr; width: min(520px, 100%); margin: 2px auto 0; gap: 8px; }
   .result-card > .actions .pirate-button, .result-card > .retry-button { height: 48px; font-size: 14px; }
 
-  .menu-with-records { width: min(900px, 100%); min-height: 0; padding: 0 18px 3px; }
-  .menu-with-records .log-title { margin: -2px 0 0; font-size: 21px; }
-  .menu-with-records > .data-tabs { margin: 0 auto; }
-  .records-panel { margin-top: 1px; }
+  .menu-with-records {
+    width: min(900px, 100%);
+    height: 100%;
+    min-height: 0;
+    padding: 1px 18px 3px;
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    align-content: stretch;
+    justify-content: stretch;
+    overflow: hidden;
+  }
+  .menu-with-records .log-title { margin: 0; font-size: 19px; }
+  .menu-with-records > .data-tabs { width: min(500px, 100%); margin: 0 auto; }
+  .records-panel {
+    min-height: 0;
+    margin-top: 1px;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
+    overflow: hidden;
+  }
   .records-heading h2 { font-size: 11px; }
   .records-heading .pirate-round { width: 28px; height: 28px; min-height: 28px; }
-  .records-table-wrap { max-height: 150px; }
+  .records-table-wrap { min-height: 0; max-height: none; overflow: auto; }
   .records-panel table { border-spacing: 0 3px; }
   .records-panel th, .records-panel td { padding: 5px 9px; font-size: 10px; }
   .pagination { margin-top: 1px; padding-top: 0; }
@@ -448,6 +498,8 @@
   .touch-group { grid-template-columns: repeat(3, 52px); gap: 1px; }
   .touch-group .touch-button { width: 52px; height: 52px; min-height: 52px; }
   .touch-group .touch-button:nth-child(2) { margin-bottom: 38px; }
+  .steering-joystick { width: 116px; height: 116px; flex-basis: 116px; }
+  .joystick-knob { width: 50px; height: 50px; margin: -25px; }
   .pause-panel { width: min(620px, 100%); min-height: 0; padding: 5px 24px; }
   .pause-panel h2 { margin: 0 0 8px; font-size: 26px; }
   .pause-panel p { margin: 0 0 4px; }
@@ -456,6 +508,9 @@
 }
 
 @media (max-height: 500px) and (orientation: landscape) and (hover: none) and (pointer: coarse) {
+  .game-screen .arena-frame { width: 100vw; height: 100svh; aspect-ratio: auto; }
+  .game-screen .canvas-host { width: 100%; height: 100%; overflow: hidden; }
+  .game-screen .game-canvas { object-fit: cover; }
   .menu-card:not(.options-card):not(.controls-card):not(.result-card):not(.menu-with-records) {
     grid-template-areas:
       "logo logo"

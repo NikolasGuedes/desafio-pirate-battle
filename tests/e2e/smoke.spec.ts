@@ -29,7 +29,7 @@ test('requires landscape orientation and uses device-appropriate game controls',
   await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Play' }).click();
-  const movementControl = page.getByRole('button', { name: 'Turn left' });
+  const movementControl = page.getByRole('button', { name: 'Movement joystick' });
   const actionControl = page.getByRole('button', { name: 'Fire starboard broadside' });
   if (testInfo.project.name === 'mobile-chromium') {
     await expect(movementControl).toBeVisible();
@@ -51,6 +51,19 @@ test('requires landscape orientation and uses device-appropriate game controls',
 
   await expect(page.getByText('Loading fleet…')).toBeHidden();
   const arena = page.locator('canvas[aria-label="Pirate Battle game arena"]');
+  if (testInfo.project.name === 'mobile-chromium') {
+    const joystickBox = await movementControl.boundingBox();
+    const directionIndicator = page.locator('[data-broadside="starboard"]:visible').first();
+    const rotationBeforeJoystick = await directionIndicator.getAttribute('style');
+    await page.mouse.move(joystickBox!.x + joystickBox!.width / 2, joystickBox!.y + joystickBox!.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(joystickBox!.x + joystickBox!.width * 0.2, joystickBox!.y + joystickBox!.height * 0.2, { steps: 4 });
+    await expect(movementControl).toHaveAttribute('data-steering', 'left');
+    await page.waitForTimeout(500);
+    await page.mouse.up();
+    await expect(movementControl).toHaveAttribute('data-steering', 'center');
+    expect(await directionIndicator.getAttribute('style')).not.toBe(rotationBeforeJoystick);
+  }
   await expect(arena).toHaveAttribute('data-player-shots', '0');
   await page.keyboard.down('Space');
   await expect(arena).toHaveAttribute('data-aiming', 'fireFront');
@@ -85,7 +98,7 @@ test('explains touch controls on mobile', async ({ page }, testInfo) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Controls' }).click();
   await expect(page.getByRole('heading', { name: 'Controls' })).toBeVisible();
-  await expect(page.getByText('Forward', { exact: true })).toBeVisible();
+  await expect(page.getByText('Movement joystick', { exact: true })).toBeVisible();
   await expect(page.getByText('Fire from the ship’s right side.')).toBeVisible();
   await page.getByRole('button', { name: 'Main Menu' }).click();
   await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();

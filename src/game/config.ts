@@ -4,7 +4,7 @@ export interface GameConfig {
   readonly arena: { readonly width: number; readonly height: number };
   readonly player: PlayerShipConfig;
   readonly chaser: ShipConfig;
-  readonly shooter: ShipConfig & { readonly attackRange: number };
+  readonly shooter: ShooterShipConfig;
   readonly projectile: ProjectileConfig;
 }
 
@@ -21,6 +21,12 @@ interface PlayerShipConfig extends ShipConfig {
   readonly angularAcceleration: number;
   readonly angularDrag: number;
   readonly damageCooldownSeconds: number;
+}
+
+interface ShooterShipConfig extends ShipConfig {
+  readonly attackRange: number;
+  readonly aimSpreadRadians: number;
+  readonly shotCooldownSeconds: number;
 }
 
 interface ProjectileConfig {
@@ -46,8 +52,15 @@ export const DEFAULT_GAME_CONFIG: GameConfig = {
     angularDrag: 7.5,
     damageCooldownSeconds: 2,
   },
-  chaser: { health: 50, movementSpeed: 105, rotationSpeed: 2.1 },
-  shooter: { health: 65, movementSpeed: 80, rotationSpeed: 1.7, attackRange: 380 },
+  chaser: { health: 50, movementSpeed: 82, rotationSpeed: 1.65 },
+  shooter: {
+    health: 65,
+    movementSpeed: 62,
+    rotationSpeed: 1.3,
+    attackRange: 360,
+    aimSpreadRadians: 0.2,
+    shotCooldownSeconds: 2.2,
+  },
   projectile: {
     speed: 500,
     damage: 25,

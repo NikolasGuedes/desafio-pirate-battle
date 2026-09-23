@@ -76,6 +76,7 @@ export class PirateGame {
   private readonly wakeRipples: WakeRipple[] = [];
   private readonly explosions: ExplosionEffect[] = [];
   private readonly scenario: ArenaScenario = pickArenaScenario();
+  private analogControl: { throttle: number; steering: number } | null = null;
   private ocean!: TilingSprite;
   private player!: Ship;
   private playerVelocity = { x: 0, y: 0 };
@@ -91,12 +92,15 @@ export class PirateGame {
   private paused = false;
   private initialized = false;
   private destroyed = false;
+  private visibleBounds = { left: 0, top: 0, right: 0, bottom: 0 };
 
   constructor(
     private readonly host: HTMLElement,
     private readonly config: GameConfig,
     private readonly callbacks: Callbacks,
-  ) {}
+  ) {
+    this.visibleBounds = { left: 0, top: 0, right: config.arena.width, bottom: config.arena.height };
+  }
 
   async start(): Promise<void> {
     await this.app.init({
@@ -150,6 +154,35 @@ export class PirateGame {
     }
     this.drawAimIndicator();
     this.publishHud();
+  }
+
+  setAnalogControl(throttle: number, steering: number): void {
+    this.analogControl = {
+      throttle: Math.max(0, Math.min(1, throttle)),
+      steering: Math.max(-1, Math.min(1, steering)),
+    };
+  }
+
+  clearAnalogControl(): void {
+    this.analogControl = null;
+  }
+
+  setViewportAspect(aspectRatio: number, cover: boolean): void {
+    const arena = this.config.arena;
+    if (!cover || !Number.isFinite(aspectRatio) || aspectRatio <= 0) {
+      this.visibleBounds = { left: 0, top: 0, right: arena.width, bottom: arena.height };
+      return;
+    }
+    const arenaAspect = arena.width / arena.height;
+    if (aspectRatio > arenaAspect) {
+      const visibleHeight = arena.width / aspectRatio;
+      const inset = (arena.height - visibleHeight) / 2;
+      this.visibleBounds = { left: 0, top: inset, right: arena.width, bottom: arena.height - inset };
+    } else {
+      const visibleWidth = arena.height * aspectRatio;
+      const inset = (arena.width - visibleWidth) / 2;
+      this.visibleBounds = { left: inset, top: 0, right: arena.width - inset, bottom: arena.height };
+    }
   }
 
   togglePause(): void {
@@ -321,19 +354,21 @@ export class PirateGame {
     const right = this.pressed('right', ['KeyD', 'ArrowRight']);
     const forward = this.pressed('forward', ['KeyW', 'ArrowUp']);
     const speed = Math.hypot(this.playerVelocity.x, this.playerVelocity.y);
-    const steering = left === right ? 0 : right ? 1 : -1;
+    const keyboardSteering = left === right ? 0 : right ? 1 : -1;
+    const steering = this.analogControl?.steering ?? keyboardSteering;
+    const throttle = this.analogControl?.throttle ?? (forward ? 1 : 0);
     const steeringAuthority = 0.32 + 0.68 * Math.min(1, speed / this.config.player.movementSpeed);
     const targetAngularVelocity = steering * this.config.player.rotationSpeed * steeringAuthority;
-    const angularStep = (steering === 0 ? this.config.player.angularDrag : this.config.player.angularAcceleration) * dt;
+    const angularStep = (Math.abs(steering) < 0.01 ? this.config.player.angularDrag : this.config.player.angularAcceleration) * dt;
     this.playerAngularVelocity = this.moveTowards(this.playerAngularVelocity, targetAngularVelocity, angularStep);
     this.player.view.rotation += this.playerAngularVelocity * dt;
 
     const direction = this.direction(this.player.view.rotation);
-    if (forward) {
-      this.playerVelocity.x += direction.x * this.config.player.thrustAcceleration * dt;
-      this.playerVelocity.y += direction.y * this.config.player.thrustAcceleration * dt;
+    if (throttle > 0) {
+      this.playerVelocity.x += direction.x * this.config.player.thrustAcceleration * throttle * dt;
+      this.playerVelocity.y += direction.y * this.config.player.thrustAcceleration * throttle * dt;
     }
-    const drag = Math.exp(-this.config.player.linearDrag * (forward ? 0.38 : 1) * dt);
+    const drag = Math.exp(-this.config.player.linearDrag * (throttle > 0 ? 0.38 : 1) * dt);
     this.playerVelocity.x *= drag;
     this.playerVelocity.y *= drag;
     const rightVector = { x: -direction.y, y: direction.x };
@@ -377,8 +412,9 @@ export class PirateGame {
         movementSpeed = settings.movementSpeed;
       }
       if (enemy.kind === 'shooter' && distance <= this.config.shooter.attackRange && enemy.cooldown <= 0) {
-        this.fire(enemy, target, 'enemy');
-        enemy.cooldown = 1.7;
+        const spread = (Math.random() * 2 - 1) * this.config.shooter.aimSpreadRadians;
+        this.fire(enemy, target + spread, 'enemy');
+        enemy.cooldown = this.config.shooter.shotCooldownSeconds;
       }
       if (enemy.kind === 'chaser' && distance < enemy.radius + this.player.radius) {
         this.spawnExplosion((enemy.view.x + this.player.view.x) / 2, (enemy.view.y + this.player.view.y) / 2, 1.05);
@@ -621,8 +657,9 @@ export class PirateGame {
   }
 
   private constrain(ship: Ship, previous: { x: number; y: number }): boolean {
-    const constrainedX = Math.max(ship.radius, Math.min(this.config.arena.width - ship.radius, ship.view.x));
-    const constrainedY = Math.max(ship.radius, Math.min(this.config.arena.height - ship.radius, ship.view.y));
+    const bounds = this.visibleBounds;
+    const constrainedX = Math.max(bounds.left + ship.radius, Math.min(bounds.right - ship.radius, ship.view.x));
+    const constrainedY = Math.max(bounds.top + ship.radius, Math.min(bounds.bottom - ship.radius, ship.view.y));
     let collided = constrainedX !== ship.view.x || constrainedY !== ship.view.y;
     ship.view.x = constrainedX;
     ship.view.y = constrainedY;
@@ -679,6 +716,7 @@ export class PirateGame {
   private clearInput(): void {
     this.keys.clear();
     this.controls.clear();
+    this.analogControl = null;
     this.clearAimIndicator();
   }
   private isFireControl(control: Control): boolean {
