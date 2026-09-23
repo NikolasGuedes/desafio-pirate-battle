@@ -2,7 +2,9 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests/e2e',
-  fullyParallel: true,
+  // PixiJS/WebAudio initialization is resource-heavy on emulated mobile.
+  // Keep journeys in this single smoke file ordered to avoid renderer contention.
+  fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
   reporter: [['html', { open: 'never' }]],
