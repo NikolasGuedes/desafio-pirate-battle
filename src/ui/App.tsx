@@ -1,0 +1,69 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { MatchRecord } from '../api/contracts';
+import { clearPendingMatch, getPlayerId, hidePersistedResult, loadLastMatch, loadPendingMatch, saveCompletedMatch, shouldRestoreResult } from '../api/localRecords';
+import { createMatch } from '../api/matches';
+import { configFromSettings, loadSettings, saveSettings, type GameSettings } from '../game/settings';
+import type { GameResult } from '../game/types';
+import { GameScreen } from './GameScreen';
+import { OptionsScreen } from './OptionsScreen';
+import { RecordsPanel, type RecordsTab } from './RecordsPanel';
+
+type Screen = 'menu' | 'options' | 'game' | 'result';
+
+export function App() {
+  const queryClient = useQueryClient();
+  const [playerId] = useState(getPlayerId);
+  const [settings, setSettings] = useState(loadSettings);
+  const [screen, setScreen] = useState<Screen>(() => shouldRestoreResult() && loadLastMatch() ? 'result' : 'menu');
+  const [result, setResult] = useState<MatchRecord | null>(loadLastMatch);
+  const [recordsTab, setRecordsTab] = useState<RecordsTab | null>(null);
+  const config = useMemo(() => {
+    const current = configFromSettings(settings);
+    const automatedDuration = navigator.webdriver ? Number(new URLSearchParams(location.search).get('testDuration')) : 0;
+    return automatedDuration > 0 ? { ...current, sessionDurationSeconds: automatedDuration } : current;
+  }, [settings]);
+  const { mutate: registerMatch, isPending: registrationPending, isError: registrationError } = useMutation({
+    mutationFn: createMatch,
+    onSuccess: async (saved) => {
+      clearPendingMatch(saved.id);
+      await Promise.all([queryClient.invalidateQueries({ queryKey: ['ranking'] }), queryClient.invalidateQueries({ queryKey: ['history', playerId] })]);
+    },
+  });
+
+  useEffect(() => {
+    const pending = loadPendingMatch();
+    if (pending) registerMatch(pending);
+  }, [registerMatch]);
+
+  const startGame = () => { setRecordsTab(null); setScreen('game'); };
+  const goToMenu = () => { hidePersistedResult(); setScreen('menu'); };
+  const handleResult = useCallback((gameResult: GameResult) => {
+    const match: MatchRecord = { id: crypto.randomUUID(), playerId, playerName: 'You', completedAt: new Date().toISOString(), score: gameResult.score, durationSeconds: gameResult.durationSeconds, endReason: gameResult.endReason, config: gameResult.config };
+    saveCompletedMatch(match);
+    setResult(match);
+    setScreen('result');
+    registerMatch(match);
+  }, [playerId, registerMatch]);
+
+  if (screen === 'game') return <GameScreen config={config} onExit={goToMenu} onResult={handleResult} />;
+  if (screen === 'options') return <OptionsScreen settings={settings} onBack={() => setScreen('menu')} onSave={(next: GameSettings) => { saveSettings(next); setSettings(next); setScreen('menu'); }} />;
+
+  if (screen === 'result' && result) {
+    const pending = registrationPending || Boolean(loadPendingMatch());
+    return <main className="app-shell"><section className="menu-card result-card" aria-labelledby="result-title">
+      <p className="eyebrow">Match complete</p><h1 id="result-title">{result.endReason === 'time-expired' ? 'Time is up!' : 'Ship destroyed'}</h1>
+      <dl className="result-stats"><div><dt>Final score</dt><dd>{result.score}</dd></div><div><dt>Time played</dt><dd>{Math.round(result.durationSeconds)}s</dd></div></dl>
+      <p className={`save-status ${registrationError ? 'field-error' : ''}`} role="status">{registrationError ? 'Registration failed. Your result is safely stored.' : pending ? 'Saving match…' : 'Match registered successfully.'}</p>
+      {registrationError && <button type="button" className="retry-button" onClick={() => registerMatch(result)}>Try Registration Again</button>}
+      <div className="actions"><button type="button" onClick={startGame}>Play Again</button><button type="button" className="secondary" onClick={goToMenu}>Main Menu</button></div>
+    </section></main>;
+  }
+
+  return <main className="app-shell"><section className={`menu-card ${recordsTab ? 'menu-with-records' : ''}`} aria-labelledby="game-title">
+    <p className="eyebrow">Survive the pirate waters</p><img className="game-logo" src="/assets/png/default/ui/menu/title_pirate_battle.png" alt="Pirate Battle" /><h1 className="visually-hidden" id="game-title">Pirate Battle</h1><p className="subtitle">Outmaneuver enemy ships and rule the sea.</p>
+    {!recordsTab && <><div className="actions" aria-label="Main menu"><button type="button" onClick={startGame}>Play</button><button type="button" className="secondary" onClick={() => setScreen('options')}>Options</button></div><section className="instructions" aria-labelledby="controls-title"><h2 id="controls-title">Controls</h2><p><kbd>W</kbd> forward · <kbd>A</kbd>/<kbd>D</kbd> turn · <kbd>Space</kbd> fire</p><p><kbd>Q</kbd>/<kbd>E</kbd> broadsides · <kbd>P</kbd> pause</p></section></>}
+    <nav className="data-tabs" aria-label="Game records"><button type="button" className="text-button" onClick={() => setRecordsTab('ranking')}>Ranking</button><button type="button" className="text-button" onClick={() => setRecordsTab('history')}>Match History</button></nav>
+    {recordsTab && <RecordsPanel tab={recordsTab} playerId={playerId} onClose={() => setRecordsTab(null)} />}
+  </section></main>;
+}
