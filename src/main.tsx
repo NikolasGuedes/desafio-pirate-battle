@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LazyMotion, MotionConfig } from 'motion/react';
 import { App } from './ui/App';
 import { OrientationGuard } from './ui/OrientationGuard';
+import { installAudioUnlock, soundManager } from './audio/soundManager';
 import './ui/styles.css';
 import './ui/sprites.css';
 
@@ -23,6 +24,9 @@ async function enableApiMocking() {
 }
 
 await enableApiMocking();
+
+installAudioUnlock();
+soundManager.preload(['uiClick', 'uiOpen', 'uiClose', 'uiBack', 'uiHover']);
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

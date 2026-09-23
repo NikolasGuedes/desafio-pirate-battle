@@ -8,12 +8,14 @@ test('opens the main menu with controls for the current device', async ({ page }
   await expect(page.getByRole('button', { name: 'Options' })).toBeVisible();
   const mobileControls = page.getByRole('button', { name: 'Controls' });
   const keyboardControls = page.getByRole('heading', { name: 'Keyboard controls' });
+  await expect(mobileControls).toBeVisible();
+  await expect(keyboardControls).toBeHidden();
   if (testInfo.project.name === 'mobile-chromium') {
-    await expect(mobileControls).toBeVisible();
-    await expect(keyboardControls).toBeHidden();
+    return;
   } else {
-    await expect(mobileControls).toBeHidden();
+    await mobileControls.click();
     await expect(keyboardControls).toBeVisible();
+    await expect(page.getByText('Movement joystick', { exact: true })).toBeHidden();
   }
 });
 
@@ -109,6 +111,7 @@ test('explains touch controls on mobile', async ({ page }, testInfo) => {
 });
 
 test('starts and pauses a match without console errors', async ({ page }) => {
+  test.setTimeout(45_000);
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/');
@@ -124,6 +127,11 @@ test('starts and pauses a match without console errors', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Game paused' })).toBeVisible();
   await page.getByRole('button', { name: 'Resume' }).click();
   await expect(page.getByRole('heading', { name: 'Game paused' })).toBeHidden();
+  await page.keyboard.press('KeyP');
+  await page.getByRole('button', { name: 'Options' }).click();
+  await expect(page.getByLabel('Sound volume')).toBeVisible();
+  await page.getByRole('button', { name: 'Back' }).click();
+  await expect(page.getByRole('heading', { name: 'Game paused' })).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -137,11 +145,13 @@ test('validates and persists game options', async ({ page }) => {
   await expect(page.getByText('Enter a whole number from 60 to 180.')).toBeVisible();
   await page.getByLabel('Game session time').fill('120');
   await page.getByLabel('Enemy spawn time').fill('8');
+  await page.getByLabel('Sound volume').fill('55');
   await page.getByRole('button', { name: 'Save' }).click();
   await page.reload();
   await page.getByRole('button', { name: 'Options' }).click();
   await expect(page.getByLabel('Game session time')).toHaveValue('120');
   await expect(page.getByLabel('Enemy spawn time')).toHaveValue('8');
+  await expect(page.getByLabel('Sound volume')).toHaveValue('55');
 });
 
 test('loads and paginates the mocked ranking', async ({ page }) => {

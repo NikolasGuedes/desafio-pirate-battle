@@ -6,9 +6,9 @@ import { clearPendingMatch, getPlayerId, hidePersistedResult, loadLastMatch, loa
 import { createMatch } from '../api/matches';
 import { configFromSettings, loadSettings, saveSettings, type GameSettings } from '../game/settings';
 import type { GameResult } from '../game/types';
+import { soundManager } from '../audio/soundManager';
 import { ControlsScreen } from './ControlsScreen';
 import { GameScreen } from './GameScreen';
-import { KeyboardControls } from './KeyboardControls';
 import { OptionsScreen } from './OptionsScreen';
 import { RecordsPanel, type RecordsTab } from './RecordsPanel';
 import { Button, Card } from './PirateUI';
@@ -24,10 +24,13 @@ export function App() {
   const [recordsTab, setRecordsTab] = useState<RecordsTab | null>(null);
   const [animateScreenTransition, setAnimateScreenTransition] = useState(false);
   const config = useMemo(() => {
-    const current = configFromSettings(settings);
+    const current = configFromSettings({
+      sessionDurationSeconds: settings.sessionDurationSeconds,
+      enemySpawnIntervalSeconds: settings.enemySpawnIntervalSeconds,
+    });
     const automatedDuration = navigator.webdriver ? Number(new URLSearchParams(location.search).get('testDuration')) : 0;
     return automatedDuration > 0 ? { ...current, sessionDurationSeconds: automatedDuration } : current;
-  }, [settings]);
+  }, [settings.sessionDurationSeconds, settings.enemySpawnIntervalSeconds]);
   const { mutate: registerMatch, isPending: registrationPending, isError: registrationError } = useMutation({
     mutationFn: createMatch,
     onSuccess: async (saved) => {
@@ -41,6 +44,16 @@ export function App() {
     if (pending) registerMatch(pending);
   }, [registerMatch]);
 
+  useEffect(() => soundManager.setMasterVolume(settings.soundVolume / 100), [settings.soundVolume]);
+
+  const changeSoundVolume = useCallback((soundVolume: number) => {
+    setSettings((current) => {
+      const next = { ...current, soundVolume };
+      saveSettings(next);
+      return next;
+    });
+  }, []);
+
   const startGame = () => { setAnimateScreenTransition(true); setRecordsTab(null); setScreen('game'); };
   const goToMenu = () => { setAnimateScreenTransition(true); hidePersistedResult(); setScreen('menu'); };
   const handleResult = useCallback((gameResult: GameResult) => {
@@ -52,7 +65,7 @@ export function App() {
     registerMatch(match);
   }, [playerId, registerMatch]);
 
-  if (screen === 'game') return <ScreenTransition screenKey="game" animated={animateScreenTransition}><GameScreen config={config} onExit={goToMenu} onResult={handleResult} /></ScreenTransition>;
+  if (screen === 'game') return <ScreenTransition screenKey="game" animated={animateScreenTransition}><GameScreen config={config} soundVolume={settings.soundVolume} onSoundVolumeChange={changeSoundVolume} onExit={goToMenu} onResult={handleResult} /></ScreenTransition>;
   if (screen === 'options') return <ScreenTransition screenKey="options" animated={animateScreenTransition}><OptionsScreen settings={settings} onBack={() => { setAnimateScreenTransition(false); setScreen('menu'); }} onSave={(next: GameSettings) => { setAnimateScreenTransition(false); saveSettings(next); setSettings(next); setScreen('menu'); }} /></ScreenTransition>;
   if (screen === 'controls') return <ScreenTransition screenKey="controls" animated={animateScreenTransition}><ControlsScreen onBack={() => { setAnimateScreenTransition(false); setScreen('menu'); }} /></ScreenTransition>;
 
@@ -63,14 +76,14 @@ export function App() {
       <dl className="result-stats"><div><dt>Final score</dt><dd>{result.score}</dd></div><div><dt>Time played</dt><dd>{Math.round(result.durationSeconds)}s</dd></div></dl>
       <p className={`save-status ${registrationError ? 'field-error' : ''}`} role="status">{registrationError ? 'Registration failed. Your result is safely stored.' : pending ? 'Saving match…' : 'Match registered successfully.'}</p>
       {registrationError && <Button type="button" size="lg" className="retry-button" onClick={() => registerMatch(result)}>Try Registration Again</Button>}
-      <div className="actions"><Button type="button" size="lg" onClick={startGame}>Play Again</Button><Button type="button" size="lg" variant="secondary" onClick={goToMenu}>Main Menu</Button></div>
+      <div className="actions"><Button type="button" size="lg" onClick={startGame}>Play Again</Button><Button type="button" size="lg" sound="uiBack" variant="secondary" onClick={goToMenu}>Main Menu</Button></div>
     </Card></main></ScreenTransition>;
   }
 
   return <ScreenTransition screenKey={recordsTab ? `records-${recordsTab}` : 'menu'} animated={animateScreenTransition}><main className="app-shell"><Card className={`menu-card ${recordsTab ? 'menu-with-records' : ''}`} aria-labelledby="game-title">
     {recordsTab ? <h1 className="log-title" id="game-title">Captain’s Log</h1> : <><img className="game-logo" src="/assets/png/retina/ui/menu/title_pirate_battle.png" alt="" /><h1 className="visually-hidden" id="game-title">Pirate Battle</h1><p className="eyebrow">Set sail. Take command.</p></>}
-    {!recordsTab && <><div className="actions" aria-label="Main menu"><Button type="button" size="lg" onClick={startGame}>Play</Button><Button type="button" size="lg" variant="secondary" onClick={() => { setAnimateScreenTransition(false); setScreen('options'); }}>Options</Button><Button className="mobile-only" type="button" size="lg" variant="secondary" onClick={() => { setAnimateScreenTransition(false); setScreen('controls'); }}>Controls</Button></div><KeyboardControls /></>}
-    <nav className="data-tabs" aria-label="Game records"><Button type="button" variant={recordsTab === 'ranking' ? 'default' : 'secondary'} aria-pressed={recordsTab === 'ranking'} onClick={() => { setAnimateScreenTransition(false); setRecordsTab('ranking'); }}>Ranking</Button><Button type="button" variant={recordsTab === 'history' ? 'default' : 'secondary'} aria-pressed={recordsTab === 'history'} onClick={() => { setAnimateScreenTransition(false); setRecordsTab('history'); }}>Match History</Button></nav>
+    {!recordsTab && <div className="actions" aria-label="Main menu"><Button type="button" size="lg" onClick={startGame}>Play</Button><Button type="button" size="lg" sound="uiOpen" variant="secondary" onClick={() => { setAnimateScreenTransition(false); setScreen('options'); }}>Options</Button><Button type="button" size="lg" sound="uiOpen" variant="secondary" onClick={() => { setAnimateScreenTransition(false); setScreen('controls'); }}>Controls</Button></div>}
+    <nav className="data-tabs" aria-label="Game records"><Button type="button" sound="uiOpen" variant={recordsTab === 'ranking' ? 'default' : 'secondary'} aria-pressed={recordsTab === 'ranking'} onClick={() => { setAnimateScreenTransition(false); setRecordsTab('ranking'); }}>Ranking</Button><Button type="button" sound="uiOpen" variant={recordsTab === 'history' ? 'default' : 'secondary'} aria-pressed={recordsTab === 'history'} onClick={() => { setAnimateScreenTransition(false); setRecordsTab('history'); }}>Match History</Button></nav>
     {recordsTab && <RecordsPanel key={recordsTab} tab={recordsTab} playerId={playerId} onClose={() => { setAnimateScreenTransition(false); setRecordsTab(null); }} />}
   </Card></main></ScreenTransition>;
 }

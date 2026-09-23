@@ -3,6 +3,7 @@ import type { GameConfig } from './config';
 import { pickArenaScenario, SCENARIO_TILE_PATHS } from './scenarios';
 import type { ArenaScenario, IslandTemplate } from './scenarios';
 import type { Control, GameResult, HudSnapshot } from './types';
+import { soundManager } from '../audio/soundManager';
 
 interface Ship {
   readonly kind: 'player' | 'chaser' | 'shooter';
@@ -93,6 +94,8 @@ export class PirateGame {
   private initialized = false;
   private destroyed = false;
   private visibleBounds = { left: 0, top: 0, right: 0, bottom: 0 };
+  private healthWarningPlayed = false;
+  private timeWarningPlayed = false;
 
   constructor(
     private readonly host: HTMLElement,
@@ -124,6 +127,13 @@ export class PirateGame {
     this.host.appendChild(this.app.canvas);
     await Assets.load([...Object.values(ASSET), ...SCENARIO_TILE_PATHS], this.callbacks.onLoading);
     if (this.destroyed) return;
+    soundManager.preload([
+      'cannonBroadside', 'cannonFire1', 'cannonFire2', 'cannonFire3',
+      'cannonballWaterHit1', 'cannonballWaterHit2', 'shipCollision',
+      'shipExplosion1', 'shipExplosion2', 'shipSailing', 'shipSinking',
+      'shipWoodHit1', 'shipWoodHit2', 'oceanAmbience', 'scorePoint',
+      'healthLow', 'timeWarning', 'gameStart', 'gamePause', 'gameResume', 'gameComplete', 'gameOver',
+    ]);
 
     this.createArena();
     const spawn = this.scenario.playerSpawn;
@@ -143,6 +153,9 @@ export class PirateGame {
     this.app.ticker.add(this.update);
     this.active = true;
     this.paused = startPaused;
+    soundManager.startLoop('oceanAmbience', 0.18);
+    soundManager.startLoop('shipSailing', 0);
+    if (startPaused) soundManager.pauseLoops();
     this.publishHud();
   }
 
@@ -189,6 +202,9 @@ export class PirateGame {
   togglePause(): void {
     if (!this.active) return;
     this.paused = !this.paused;
+    soundManager.play(this.paused ? 'gamePause' : 'gameResume', { volume: 0.5 });
+    if (this.paused) soundManager.pauseLoops();
+    else soundManager.resumeLoops();
     this.clearInput();
     this.publishHud();
   }
@@ -196,13 +212,16 @@ export class PirateGame {
   pause(): void {
     if (!this.active || this.paused) return;
     this.paused = true;
+    soundManager.pauseLoops();
     this.clearInput();
     this.publishHud();
   }
 
-  resume(): void {
+  resume(playSound = true): void {
     if (!this.active) return;
     this.paused = false;
+    if (playSound) soundManager.play('gameResume', { volume: 0.5 });
+    soundManager.resumeLoops();
     this.clearInput();
     this.publishHud();
   }
@@ -211,6 +230,8 @@ export class PirateGame {
     if (this.destroyed) return;
     this.destroyed = true;
     this.active = false;
+    soundManager.stopLoop('oceanAmbience');
+    soundManager.stopLoop('shipSailing');
     window.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('keyup', this.onKeyUp);
     window.removeEventListener('blur', this.onAutomaticPause);
@@ -348,6 +369,10 @@ export class PirateGame {
       this.publishHud();
     }
     if (this.elapsed >= this.config.sessionDurationSeconds) this.finish('time-expired');
+    else if (!this.timeWarningPlayed && this.config.sessionDurationSeconds - this.elapsed <= 10) {
+      this.timeWarningPlayed = true;
+      soundManager.play('timeWarning', { volume: 0.58 });
+    }
   };
 
   private updatePlayer(dt: number): void {
@@ -378,6 +403,7 @@ export class PirateGame {
     this.playerVelocity.x -= rightVector.x * lateralCorrection;
     this.playerVelocity.y -= rightVector.y * lateralCorrection;
     const currentSpeed = Math.hypot(this.playerVelocity.x, this.playerVelocity.y);
+    soundManager.setLoopVolume('shipSailing', 0.04 + Math.min(1, currentSpeed / this.config.player.movementSpeed) * 0.16);
     if (currentSpeed > this.config.player.movementSpeed) {
       const ratio = this.config.player.movementSpeed / currentSpeed;
       this.playerVelocity.x *= ratio;
@@ -418,6 +444,7 @@ export class PirateGame {
         enemy.cooldown = this.config.shooter.shotCooldownSeconds;
       }
       if (enemy.kind === 'chaser' && distance < enemy.radius + this.player.radius) {
+        soundManager.play('shipCollision', { volume: 0.64, throttleMs: 250 });
         this.spawnExplosion((enemy.view.x + this.player.view.x) / 2, (enemy.view.y + this.player.view.y) / 2, 1.05);
         this.damagePlayer(30);
         this.removeEnemy(enemy, false);
@@ -438,6 +465,7 @@ export class PirateGame {
       this.drawProjectileTrail(projectile);
       const outside = projectile.view.x < 0 || projectile.view.y < 0 || projectile.view.x > this.config.arena.width || projectile.view.y > this.config.arena.height;
       if (projectile.ttl <= 0 || outside || this.insideIsland(projectile.view.x, projectile.view.y, projectile.radius)) {
+        soundManager.playRandom(['cannonballWaterHit1', 'cannonballWaterHit2'], { volume: 0.34, playbackRate: 0.94 + Math.random() * 0.12, throttleMs: 45 });
         this.removeProjectile(projectile);
         continue;
       }
@@ -445,11 +473,13 @@ export class PirateGame {
         const target = this.enemies.find((enemy) => this.distance(projectile.view.x, projectile.view.y, enemy.view.x, enemy.view.y) < projectile.radius + enemy.radius);
         if (target) {
           target.health -= this.config.projectile.damage;
+          soundManager.playRandom(['shipWoodHit1', 'shipWoodHit2'], { volume: 0.52, playbackRate: 0.96 + Math.random() * 0.08 });
           this.spawnExplosion(target.view.x, target.view.y, target.health <= 0 ? 1.3 : 0.88);
           this.removeProjectile(projectile);
           if (target.health <= 0) this.removeEnemy(target, true);
         }
       } else if (this.distance(projectile.view.x, projectile.view.y, this.player.view.x, this.player.view.y) < projectile.radius + this.player.radius) {
+        soundManager.playRandom(['shipWoodHit1', 'shipWoodHit2'], { volume: 0.58, playbackRate: 0.96 + Math.random() * 0.08 });
         this.spawnExplosion(this.player.view.x, this.player.view.y, 0.95);
         this.removeProjectile(projectile);
         this.damagePlayer(this.config.projectile.damage);
@@ -460,11 +490,13 @@ export class PirateGame {
   private broadside(side: -1 | 1): void {
     const angle = this.player.view.rotation + side * Math.PI / 2;
     const forward = this.direction(this.player.view.rotation);
-    for (const offset of [-22, 0, 22]) this.fire(this.player, angle, 'player', forward.x * offset, forward.y * offset);
+    soundManager.play('cannonBroadside', { volume: 0.68 });
+    for (const offset of [-22, 0, 22]) this.fire(this.player, angle, 'player', forward.x * offset, forward.y * offset, false);
     this.player.cooldown = this.config.projectile.broadsideCooldownSeconds;
   }
 
-  private fire(ship: Ship, angle: number, owner: Projectile['owner'], offsetX = 0, offsetY = 0): void {
+  private fire(ship: Ship, angle: number, owner: Projectile['owner'], offsetX = 0, offsetY = 0, withSound = true): void {
+    if (withSound) soundManager.playRandom(['cannonFire1', 'cannonFire2', 'cannonFire3'], { volume: owner === 'player' ? 0.62 : 0.42, playbackRate: 0.96 + Math.random() * 0.08, throttleMs: 45 });
     const direction = this.direction(angle);
     const view = Sprite.from(ASSET.cannonBall);
     view.anchor.set(0.5);
@@ -622,6 +654,10 @@ export class PirateGame {
   private damagePlayer(amount: number): void {
     if (!this.active || this.playerDamageCooldown > 0) return;
     this.player.health = Math.max(0, this.player.health - amount);
+    if (!this.healthWarningPlayed && this.player.health > 0 && this.player.health <= this.player.maxHealth * 0.25) {
+      this.healthWarningPlayed = true;
+      soundManager.play('healthLow', { volume: 0.62 });
+    }
     this.playerDamageCooldown = this.config.player.damageCooldownSeconds;
     this.drawHealth(this.player);
     this.publishHud();
@@ -646,7 +682,11 @@ export class PirateGame {
     this.enemies.splice(index, 1);
     enemy.view.destroy();
     enemy.healthBar.destroy({ children: true });
-    if (score) this.score += 1;
+    if (score) {
+      this.score += 1;
+      soundManager.playRandom(['shipExplosion1', 'shipExplosion2'], { volume: 0.7, playbackRate: 0.96 + Math.random() * 0.08 });
+      soundManager.play('scorePoint', { volume: 0.48 });
+    }
   }
 
   private removeProjectile(projectile: Projectile): void {
@@ -669,6 +709,7 @@ export class PirateGame {
       collided = true;
       if (ship.kind !== 'player') ship.view.rotation += Math.PI * 0.45;
     }
+    if (collided && ship.kind === 'player') soundManager.play('shipCollision', { volume: 0.26, throttleMs: 500 });
     return collided;
   }
 
@@ -682,6 +723,12 @@ export class PirateGame {
   private finish(endReason: GameResult['endReason']): void {
     if (!this.active) return;
     this.active = false;
+    soundManager.stopLoop('oceanAmbience');
+    soundManager.stopLoop('shipSailing');
+    if (endReason === 'player-destroyed') {
+      soundManager.play('shipSinking', { volume: 0.66 });
+      soundManager.play('gameOver', { volume: 0.62 });
+    } else soundManager.play('gameComplete', { volume: 0.64 });
     this.clearInput();
     this.callbacks.onResult({ score: this.score, durationSeconds: Math.min(this.elapsed, this.config.sessionDurationSeconds), endReason, config: this.config });
   }

@@ -1,4 +1,5 @@
 import { Button, Card, Icon, type SpriteIcon } from './PirateUI';
+import { KeyboardControls } from './KeyboardControls';
 
 interface Props {
   readonly onBack: () => void;
@@ -15,10 +16,10 @@ const controls: ReadonlyArray<{ icon: SpriteIcon; label: string; description: st
 export function ControlsScreen({ onBack }: Props) {
   return (
     <main className="app-shell">
-      <Card className="menu-card controls-card" aria-labelledby="mobile-controls-title">
-        <h1 id="mobile-controls-title">Controls</h1>
-        <p className="controls-note">Broadside arrows rotate with your ship and point toward the shot.</p>
-        <div className="control-list">
+      <Card className="menu-card controls-card" aria-labelledby="controls-title">
+        <h1 id="controls-title">Controls</h1>
+        <p className="controls-note mobile-control-only">Broadside arrows rotate with your ship and point toward the shot.</p>
+        <div className="control-list mobile-control-only">
           {controls.map((control) => (
             <article className="control-guide" key={control.icon}>
               <span className="control-demo" aria-hidden="true"><Icon name={control.icon} /></span>
@@ -26,7 +27,8 @@ export function ControlsScreen({ onBack }: Props) {
             </article>
           ))}
         </div>
-        <div className="actions"><Button type="button" size="lg" onClick={onBack}>Main Menu</Button></div>
+        <KeyboardControls />
+        <div className="actions"><Button type="button" size="lg" sound="uiBack" onClick={onBack}>Main Menu</Button></div>
       </Card>
     </main>
   );

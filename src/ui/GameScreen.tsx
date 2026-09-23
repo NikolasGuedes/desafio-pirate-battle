@@ -5,27 +5,37 @@ import type { GameConfig } from '../game/config';
 import type { Control, GameResult, HudSnapshot } from '../game/types';
 import { KeyboardControls } from './KeyboardControls';
 import { Button, Card, RoundButton, HullBar, Icon, type SpriteIcon } from './PirateUI';
+import { soundManager } from '../audio/soundManager';
+import { VolumeControl } from './VolumeControl';
 
 interface Props {
   readonly config: GameConfig;
+  readonly soundVolume: number;
+  readonly onSoundVolumeChange: (value: number) => void;
   readonly onExit: () => void;
   readonly onResult: (result: GameResult) => void;
 }
 
-export function GameScreen({ config, onExit, onResult }: Props) {
+export function GameScreen({ config, soundVolume, onSoundVolumeChange, onExit, onResult }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<PirateGame | null>(null);
   const [hud, setHud] = useState<HudSnapshot>({ health: 100, maxHealth: 100, score: 0, remainingSeconds: config.sessionDurationSeconds, enemyCount: 0, paused: false, playerRotation: 0, activeControls: [] });
   const [loading, setLoading] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [phase, setPhase] = useState<'loading' | 'countdown' | 'playing'>('loading');
+  const [pauseOptions, setPauseOptions] = useState(false);
 
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
     let disposed = false;
     const game = new PirateGame(host, config, {
-      onHud: (snapshot) => { if (!disposed) setHud(snapshot); },
+      onHud: (snapshot) => {
+        if (!disposed) {
+          setHud(snapshot);
+          if (!snapshot.paused) setPauseOptions(false);
+        }
+      },
       onResult: (result) => { if (!disposed) onResult(result); },
       onLoading: (progress) => { if (!disposed) setLoading(progress); },
     });
@@ -61,7 +71,7 @@ export function GameScreen({ config, onExit, onResult }: Props) {
 
   const hold = (control: Control, pressed: boolean) => gameRef.current?.setControl(control, pressed);
   const beginMatch = useCallback(() => {
-    gameRef.current?.resume();
+    gameRef.current?.resume(false);
     setPhase('playing');
   }, []);
 
@@ -71,23 +81,30 @@ export function GameScreen({ config, onExit, onResult }: Props) {
         <div className="health-stat"><Icon name="heart" /><HullBar health={hud.health} maxHealth={hud.maxHealth} /></div>
         <div className="hud-counter" aria-label={`Score: ${hud.score}`}><Icon name="score" /><strong>{hud.score}</strong></div>
         <div className="hud-counter" aria-label={`Time remaining: ${formatTime(hud.remainingSeconds)}`}><Icon name="time" /><strong>{formatTime(hud.remainingSeconds)}</strong></div>
-        <RoundButton className="hud-button" icon="pause" disabled={phase !== 'playing'} onClick={() => gameRef.current?.togglePause()} aria-label="Pause game" />
+        <RoundButton className="hud-button" icon="pause" sound={false} disabled={phase !== 'playing'} onClick={() => { setPauseOptions(false); gameRef.current?.togglePause(); }} aria-label="Pause game" />
       </header>
 
       <div className="arena-frame">
         <div ref={hostRef} className="canvas-host" />
         {phase === 'loading' && !error && <m.div className="game-overlay loading-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><span className="loading-wheel" aria-hidden="true" /><h2>Preparing the fleet</h2><p>Loading fleet… {Math.round(loading * 100)}%</p><div className="loading-track" aria-hidden="true"><m.span animate={{ width: `${Math.round(loading * 100)}%` }} transition={{ duration: 0.18 }} /></div></m.div>}
-        {error && <div className="game-overlay"><h2>Loading failed</h2><p>{error}</p><Button size="lg" type="button" onClick={onExit}>Main Menu</Button></div>}
+        {error && <div className="game-overlay"><h2>Loading failed</h2><p>{error}</p><Button size="lg" type="button" sound="uiBack" onClick={onExit}>Main Menu</Button></div>}
         {phase === 'countdown' && !error && <MatchCountdown onComplete={beginMatch} />}
         {phase === 'playing' && hud.paused && !error && (
           <div className="game-overlay" role="dialog" aria-modal="true" aria-labelledby="pause-title">
             <Card className="pause-panel">
-            <h2 id="pause-title" aria-label="Game paused">Paused</h2>
-            <p>Ready when you are.</p>
-            <div className="actions">
-            <Button size="lg" type="button" onClick={() => gameRef.current?.resume()} autoFocus>Resume</Button>
-            <Button size="lg" type="button" variant="secondary" onClick={onExit}>Main Menu</Button>
-            </div>
+            {pauseOptions ? <>
+              <h2 id="pause-title" aria-label="Game paused options">Options</h2>
+              <VolumeControl id="pause-sound-volume" value={soundVolume} onChange={onSoundVolumeChange} />
+              <div className="actions"><Button size="lg" type="button" sound="uiBack" onClick={() => setPauseOptions(false)}>Back</Button></div>
+            </> : <>
+              <h2 id="pause-title" aria-label="Game paused">Paused</h2>
+              <p>Ready when you are.</p>
+              <div className="actions">
+                <Button size="lg" type="button" sound={false} onClick={() => gameRef.current?.resume()} autoFocus>Resume</Button>
+                <Button size="lg" type="button" sound="uiOpen" variant="secondary" onClick={() => setPauseOptions(true)}>Options</Button>
+                <Button size="lg" type="button" sound="uiBack" variant="secondary" onClick={onExit}>Main Menu</Button>
+              </div>
+            </>}
             </Card>
           </div>
         )}
@@ -115,6 +132,13 @@ const COUNTDOWN_WORDS = ['READY', 'SET', 'SHIP!'] as const;
 
 function MatchCountdown({ onComplete }: { readonly onComplete: () => void }) {
   const [step, setStep] = useState(0);
+  useEffect(() => {
+    const sounds = ['shipWoodHit1', 'shipWoodHit2', 'cannonFire1'] as const;
+    const volumes = [0.26, 0.28, 0.34] as const;
+    const sound = sounds[step];
+    const volume = volumes[step];
+    if (sound && volume !== undefined) soundManager.play(sound, { volume, throttleMs: 100 });
+  }, [step]);
   useEffect(() => {
     const timer = window.setTimeout(() => {
       if (step === COUNTDOWN_WORDS.length - 1) onComplete();
@@ -211,6 +235,7 @@ function HoldButton({ label, icon, iconRotation, broadside, disabled = false, on
     <RoundButton
       className={`touch-button ${iconRotation === undefined ? '' : 'direction-aware'}`}
       icon={icon}
+      sound={false}
       type="button"
       disabled={disabled}
       aria-label={label}

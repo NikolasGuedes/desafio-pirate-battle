@@ -1,14 +1,17 @@
 import { useState, type FormEvent } from 'react';
 import { isValidSessionDuration, isValidSpawnInterval, type GameSettings } from '../game/settings';
+import { soundManager } from '../audio/soundManager';
 import { Button, Card, RoundButton } from './PirateUI';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { VolumeControl } from './VolumeControl';
 
 interface Props { readonly settings: GameSettings; readonly onSave: (settings: GameSettings) => void; readonly onBack: () => void; }
 
 export function OptionsScreen({ settings, onSave, onBack }: Props) {
   const [duration, setDuration] = useState(String(settings.sessionDurationSeconds));
   const [spawn, setSpawn] = useState(String(settings.enemySpawnIntervalSeconds));
+  const [soundVolume, setSoundVolume] = useState(settings.soundVolume);
   const [submitted, setSubmitted] = useState(false);
   const durationValue = Number(duration);
   const spawnValue = Number(spawn);
@@ -16,7 +19,7 @@ export function OptionsScreen({ settings, onSave, onBack }: Props) {
   const spawnValid = isValidSpawnInterval(spawnValue);
   const submit = (event: FormEvent) => {
     event.preventDefault(); setSubmitted(true);
-    if (durationValid && spawnValid) onSave({ sessionDurationSeconds: durationValue, enemySpawnIntervalSeconds: spawnValue });
+    if (durationValid && spawnValid) onSave({ sessionDurationSeconds: durationValue, enemySpawnIntervalSeconds: spawnValue, soundVolume });
   };
   return <main className="app-shell"><Card className="menu-card options-card" aria-labelledby="options-title">
     <h1 id="options-title">Options</h1>
@@ -35,7 +38,8 @@ export function OptionsScreen({ settings, onSave, onBack }: Props) {
       <RoundButton icon="plus" aria-label="Increase spawn time" disabled={spawnValue >= 15} onClick={() => setSpawn(String(Math.min(15, spawnValue + 1)))} />
       </div>
       <p id="spawn-help" className={submitted && !spawnValid ? 'field-error' : 'field-help'}>{submitted && !spawnValid ? 'Enter a number from 2 to 15.' : 'Lower values make the arena more intense.'}</p>
-      <div className="actions"><Button type="submit" size="lg">Save</Button><Button type="button" size="lg" variant="secondary" onClick={onBack}>Cancel</Button></div>
+      <VolumeControl id="sound-volume" value={soundVolume} onChange={setSoundVolume} />
+      <div className="actions"><Button type="submit" size="lg" sound="uiClose">Save</Button><Button type="button" size="lg" sound="uiBack" variant="secondary" onClick={() => { soundManager.setMasterVolume(settings.soundVolume / 100); onBack(); }}>Cancel</Button></div>
     </form>
   </Card></main>;
 }

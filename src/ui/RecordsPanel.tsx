@@ -19,7 +19,7 @@ export function RecordsPanel({ tab, playerId, onClose }: { readonly tab: Records
     placeholderData: (previous) => previous,
   });
   return <section className="records-panel" aria-labelledby="records-title">
-    <div className="records-heading"><h2 id="records-title">{tab === 'ranking' ? 'Ranking' : 'Match History'}</h2><RoundButton icon="close" onClick={onClose} aria-label="Close records" /></div>
+    <div className="records-heading"><h2 id="records-title">{tab === 'ranking' ? 'Ranking' : 'Match History'}</h2><RoundButton icon="close" sound="uiClose" onClick={onClose} aria-label="Close records" /></div>
     {query.isPending && <p role="status">Loading records…</p>}
     {query.isError && <div className="error-state"><p>Could not load records.</p><Button type="button" onClick={() => void query.refetch()}>Try Again</Button></div>}
     {query.data?.items.length === 0 && <p className="empty-state">No matches yet. Finish a battle to appear here.</p>}
@@ -34,7 +34,7 @@ export function RecordsPanel({ tab, playerId, onClose }: { readonly tab: Records
     ><Table><TableHeader><TableRow><TableHead>{tab === 'ranking' ? '#' : 'Date'}</TableHead><TableHead>Captain</TableHead><TableHead>Score</TableHead><TableHead>Duration</TableHead><TableHead>Result</TableHead></TableRow></TableHeader><TableBody>{query.data.items.map((match, index) => <RecordRow key={match.id} match={match} position={(query.data.page - 1) * query.data.pageSize + index + 1} history={tab === 'history'} index={index} />)}</TableBody></Table></m.div></AnimatePresence></div>}
     {query.data && query.data.totalPages > 1 && <nav className="pagination" aria-label="Records pages"><RoundButton icon="turn_left" aria-label="Previous" disabled={page <= 1 || query.isFetching} onClick={() => { setDirection(-1); setPage((value) => value - 1); }} /><span>Page {page} of {query.data.totalPages}</span><RoundButton icon="turn_right" aria-label="Next" disabled={page >= query.data.totalPages || query.isFetching} onClick={() => { setDirection(1); setPage((value) => value + 1); }} /></nav>}
     {query.isFetching && !query.isPending && <small role="status">Updating…</small>}
-    <div className="actions"><Button onClick={onClose}>Main Menu</Button></div>
+    <div className="actions"><Button sound="uiBack" onClick={onClose}>Main Menu</Button></div>
   </section>;
 }
 
