@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { PirateGame } from '../game/PirateGame';
 import type { GameConfig } from '../game/config';
 import type { Control, GameResult, HudSnapshot } from '../game/types';
+import { KeyboardControls } from './KeyboardControls';
 import { Button, Card, RoundButton, HullBar, Icon, type SpriteIcon } from './PirateUI';
 
 interface Props {
@@ -13,7 +14,7 @@ interface Props {
 export function GameScreen({ config, onExit, onResult }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<PirateGame | null>(null);
-  const [hud, setHud] = useState<HudSnapshot>({ health: 100, maxHealth: 100, score: 0, remainingSeconds: config.sessionDurationSeconds, enemyCount: 0, paused: false });
+  const [hud, setHud] = useState<HudSnapshot>({ health: 100, maxHealth: 100, score: 0, remainingSeconds: config.sessionDurationSeconds, enemyCount: 0, paused: false, playerRotation: 0, activeControls: [] });
   const [loading, setLoading] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,11 +28,17 @@ export function GameScreen({ config, onExit, onResult }: Props) {
       onLoading: (progress) => { if (!disposed) setLoading(progress); },
     });
     gameRef.current = game;
+    const portraitQuery = window.matchMedia('(orientation: portrait) and (max-width: 900px) and (hover: none) and (pointer: coarse)');
+    const pauseForPortrait = (event: MediaQueryListEvent) => {
+      if (event.matches) game.pause();
+    };
+    portraitQuery.addEventListener('change', pauseForPortrait);
     void game.start().catch((cause: unknown) => {
       if (!disposed) setError(cause instanceof Error ? cause.message : 'Could not load the game.');
     });
     return () => {
       disposed = true;
+      portraitQuery.removeEventListener('change', pauseForPortrait);
       game.destroy();
       gameRef.current = null;
     };
@@ -73,23 +80,31 @@ export function GameScreen({ config, onExit, onResult }: Props) {
           <HoldButton label="Turn right" icon="turn_right" onHold={(pressed) => hold('right', pressed)} />
         </div>
         <div className="touch-group">
-          <HoldButton label="Fire left broadside" icon="fire_left" onHold={(pressed) => hold('fireLeft', pressed)} />
+          <HoldButton label="Fire port broadside" icon="fire_left" iconRotation={hud.playerRotation} broadside="port" onHold={(pressed) => hold('fireLeft', pressed)} />
           <HoldButton label="Fire front cannon" icon="fire_front" onHold={(pressed) => hold('fireFront', pressed)} />
-          <HoldButton label="Fire right broadside" icon="fire_right" onHold={(pressed) => hold('fireRight', pressed)} />
+          <HoldButton label="Fire starboard broadside" icon="fire_right" iconRotation={hud.playerRotation} broadside="starboard" onHold={(pressed) => hold('fireRight', pressed)} />
         </div>
       </div>
-      <p className="controls-help">W/↑ move · A/D or ←/→ turn · Space front cannon · Q/E broadsides · P/Esc pause</p>
+      <KeyboardControls playerRotation={hud.playerRotation} activeControls={hud.activeControls} inGame />
     </main>
   );
 }
 
-function HoldButton({ label, icon, onHold }: { readonly label: string; readonly icon: SpriteIcon; readonly onHold: (pressed: boolean) => void }) {
+function HoldButton({ label, icon, iconRotation, broadside, onHold }: {
+  readonly label: string;
+  readonly icon: SpriteIcon;
+  readonly iconRotation?: number;
+  readonly broadside?: 'port' | 'starboard';
+  readonly onHold: (pressed: boolean) => void;
+}) {
   return (
     <RoundButton
-      className="touch-button"
+      className={`touch-button ${iconRotation === undefined ? '' : 'direction-aware'}`}
       icon={icon}
       type="button"
       aria-label={label}
+      data-broadside={broadside}
+      style={iconRotation === undefined ? undefined : { '--ship-rotation': `${iconRotation}rad` } as CSSProperties}
       onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); onHold(true); }}
       onPointerUp={() => onHold(false)}
       onPointerCancel={() => onHold(false)}

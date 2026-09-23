@@ -1,10 +1,84 @@
 import { expect, test } from '@playwright/test';
 
-test('opens the main menu', async ({ page }) => {
+test('opens the main menu with controls for the current device', async ({ page }, testInfo) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Pirate Battle' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Options' })).toBeVisible();
+  const mobileControls = page.getByRole('button', { name: 'Controls' });
+  const keyboardControls = page.getByRole('heading', { name: 'Keyboard controls' });
+  if (testInfo.project.name === 'mobile-chromium') {
+    await expect(mobileControls).toBeVisible();
+    await expect(keyboardControls).toBeHidden();
+  } else {
+    await expect(mobileControls).toBeHidden();
+    await expect(keyboardControls).toBeVisible();
+  }
+});
+
+test('requires landscape orientation and uses device-appropriate game controls', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.goto('/');
+  if (testInfo.project.name === 'mobile-chromium') {
+    await expect(page.getByRole('heading', { name: 'Rotate your device' })).toBeVisible();
+  } else {
+    await expect(page.getByRole('heading', { name: 'Rotate your device' })).toBeHidden();
+  }
+  await page.setViewportSize({ width: 800, height: 360 });
+  await expect(page.getByRole('heading', { name: 'Rotate your device' })).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Play' }).click();
+  const movementControl = page.getByRole('button', { name: 'Turn left' });
+  const actionControl = page.getByRole('button', { name: 'Fire starboard broadside' });
+  if (testInfo.project.name === 'mobile-chromium') {
+    await expect(movementControl).toBeVisible();
+    await expect(actionControl).toBeVisible();
+
+    const movementBox = await movementControl.boundingBox();
+    const actionBox = await actionControl.boundingBox();
+    expect(movementBox).not.toBeNull();
+    expect(actionBox).not.toBeNull();
+    expect(movementBox!.x).toBeLessThan(160);
+    expect(actionBox!.x + actionBox!.width).toBeGreaterThan(640);
+    expect(movementBox!.width).toBeGreaterThanOrEqual(44);
+    expect(actionBox!.width).toBeGreaterThanOrEqual(44);
+  } else {
+    await expect(movementControl).toBeHidden();
+    await expect(actionControl).toBeHidden();
+    await expect(page.getByRole('heading', { name: 'Keyboard controls' })).toBeVisible();
+  }
+
+  await expect(page.getByText('Loading fleet…')).toBeHidden();
+  const broadsideIndicator = page.locator('[data-broadside="starboard"]:visible').first();
+  const initialRotation = await broadsideIndicator.getAttribute('style');
+  await page.keyboard.down('KeyD');
+  if (testInfo.project.name === 'desktop-chromium') {
+    await expect(page.locator('[data-control="right"]:visible')).toHaveAttribute('data-active', 'true');
+  }
+  await page.waitForTimeout(500);
+  await page.keyboard.up('KeyD');
+  if (testInfo.project.name === 'desktop-chromium') {
+    await expect(page.locator('[data-control="right"]:visible')).toHaveAttribute('data-active', 'false');
+    const portBroadside = page.locator('[data-broadside="port"]:visible');
+    await page.keyboard.down('KeyQ');
+    await expect(portBroadside).toHaveAttribute('data-active', 'true');
+    await page.keyboard.up('KeyQ');
+    await expect(portBroadside).toHaveAttribute('data-active', 'false');
+  }
+  const rotatedRotation = await broadsideIndicator.getAttribute('style');
+  expect(rotatedRotation).not.toBe(initialRotation);
+});
+
+test('explains touch controls on mobile', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile-chromium', 'Mobile-only navigation');
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Controls' }).click();
+  await expect(page.getByRole('heading', { name: 'Controls' })).toBeVisible();
+  await expect(page.getByText('Forward', { exact: true })).toBeVisible();
+  await expect(page.getByText('Fire from the ship’s right side.')).toBeVisible();
+  await page.getByRole('button', { name: 'Main Menu' }).click();
+  await expect(page.getByRole('button', { name: 'Play' })).toBeVisible();
 });
 
 test('starts and pauses a match without console errors', async ({ page }) => {

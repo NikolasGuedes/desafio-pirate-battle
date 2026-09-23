@@ -5,12 +5,14 @@ import { clearPendingMatch, getPlayerId, hidePersistedResult, loadLastMatch, loa
 import { createMatch } from '../api/matches';
 import { configFromSettings, loadSettings, saveSettings, type GameSettings } from '../game/settings';
 import type { GameResult } from '../game/types';
+import { ControlsScreen } from './ControlsScreen';
 import { GameScreen } from './GameScreen';
+import { KeyboardControls } from './KeyboardControls';
 import { OptionsScreen } from './OptionsScreen';
 import { RecordsPanel, type RecordsTab } from './RecordsPanel';
 import { Button, Card } from './PirateUI';
 
-type Screen = 'menu' | 'options' | 'game' | 'result';
+type Screen = 'menu' | 'options' | 'controls' | 'game' | 'result';
 
 export function App() {
   const queryClient = useQueryClient();
@@ -49,6 +51,7 @@ export function App() {
 
   if (screen === 'game') return <GameScreen config={config} onExit={goToMenu} onResult={handleResult} />;
   if (screen === 'options') return <OptionsScreen settings={settings} onBack={() => setScreen('menu')} onSave={(next: GameSettings) => { saveSettings(next); setSettings(next); setScreen('menu'); }} />;
+  if (screen === 'controls') return <ControlsScreen onBack={() => setScreen('menu')} />;
 
   if (screen === 'result' && result) {
     const pending = registrationPending || Boolean(loadPendingMatch());
@@ -63,7 +66,7 @@ export function App() {
 
   return <main className="app-shell"><Card className={`menu-card ${recordsTab ? 'menu-with-records' : ''}`} aria-labelledby="game-title">
     {recordsTab ? <h1 className="log-title" id="game-title">Captain’s Log</h1> : <><img className="game-logo" src="/assets/png/retina/ui/menu/title_pirate_battle.png" alt="" /><h1 className="visually-hidden" id="game-title">Pirate Battle</h1><p className="eyebrow">Set sail. Take command.</p></>}
-    {!recordsTab && <><div className="actions" aria-label="Main menu"><Button type="button" size="lg" onClick={startGame}>Play</Button><Button type="button" size="lg" variant="secondary" onClick={() => setScreen('options')}>Options</Button></div><section className="instructions" aria-labelledby="controls-title"><h2 id="controls-title">Controls</h2><p><kbd>W</kbd> forward · <kbd>A</kbd>/<kbd>D</kbd> turn · <kbd>Space</kbd> fire</p><p><kbd>Q</kbd>/<kbd>E</kbd> broadsides · <kbd>P</kbd> pause</p></section></>}
+    {!recordsTab && <><div className="actions" aria-label="Main menu"><Button type="button" size="lg" onClick={startGame}>Play</Button><Button type="button" size="lg" variant="secondary" onClick={() => setScreen('options')}>Options</Button><Button className="mobile-only" type="button" size="lg" variant="secondary" onClick={() => setScreen('controls')}>Controls</Button></div><KeyboardControls /></>}
     <nav className="data-tabs" aria-label="Game records"><Button type="button" variant={recordsTab === 'ranking' ? 'default' : 'secondary'} aria-pressed={recordsTab === 'ranking'} onClick={() => setRecordsTab('ranking')}>Ranking</Button><Button type="button" variant={recordsTab === 'history' ? 'default' : 'secondary'} aria-pressed={recordsTab === 'history'} onClick={() => setRecordsTab('history')}>Match History</Button></nav>
     {recordsTab && <RecordsPanel key={recordsTab} tab={recordsTab} playerId={playerId} onClose={() => setRecordsTab(null)} />}
   </Card></main>;

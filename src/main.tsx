@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from './ui/App';
+import { OrientationGuard } from './ui/OrientationGuard';
 import './ui/styles.css';
 import './ui/sprites.css';
 
@@ -24,6 +25,7 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <App />
+      <OrientationGuard />
     </QueryClientProvider>
   </StrictMode>,
 );

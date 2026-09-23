@@ -105,11 +105,19 @@ export class PirateGame {
   setControl(control: Control, pressed: boolean): void {
     if (pressed) this.controls.add(control);
     else this.controls.delete(control);
+    this.publishHud();
   }
 
   togglePause(): void {
     if (!this.active) return;
     this.paused = !this.paused;
+    this.clearInput();
+    this.publishHud();
+  }
+
+  pause(): void {
+    if (!this.active || this.paused) return;
+    this.paused = true;
     this.clearInput();
     this.publishHud();
   }
@@ -355,7 +363,21 @@ export class PirateGame {
       remainingSeconds: Math.max(0, Math.ceil(this.config.sessionDurationSeconds - this.elapsed)),
       enemyCount: this.enemies.length,
       paused: this.paused,
+      playerRotation: this.player?.view.rotation ?? 0,
+      activeControls: this.getActiveControls(),
     });
+  }
+
+  private getActiveControls(): Control[] {
+    const bindings: ReadonlyArray<readonly [Control, readonly string[]]> = [
+      ['forward', ['KeyW', 'ArrowUp']],
+      ['left', ['KeyA', 'ArrowLeft']],
+      ['right', ['KeyD', 'ArrowRight']],
+      ['fireFront', ['Space']],
+      ['fireLeft', ['KeyQ']],
+      ['fireRight', ['KeyE']],
+    ];
+    return bindings.filter(([control, codes]) => this.pressed(control, codes)).map(([control]) => control);
   }
 
   private pressed(control: Control, codes: readonly string[]): boolean {
@@ -377,15 +399,16 @@ export class PirateGame {
     if (!gameCodes.includes(event.code)) return;
     event.preventDefault();
     if ((event.code === 'KeyP' || event.code === 'Escape') && !event.repeat) this.togglePause();
-    else if (!this.paused) this.keys.add(event.code);
-  };
-  private readonly onKeyUp = (event: KeyboardEvent): void => { this.keys.delete(event.code); };
-  private readonly onAutomaticPause = (): void => {
-    if (this.active && !this.paused) {
-      this.paused = true;
-      this.clearInput();
+    else if (!this.paused) {
+      this.keys.add(event.code);
       this.publishHud();
     }
+  };
+  private readonly onKeyUp = (event: KeyboardEvent): void => {
+    if (this.keys.delete(event.code)) this.publishHud();
+  };
+  private readonly onAutomaticPause = (): void => {
+    this.pause();
   };
   private readonly onVisibilityChange = (): void => { if (document.hidden) this.onAutomaticPause(); };
 }

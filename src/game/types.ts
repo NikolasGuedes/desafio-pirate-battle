@@ -10,6 +10,8 @@ export interface HudSnapshot {
   readonly remainingSeconds: number;
   readonly enemyCount: number;
   readonly paused: boolean;
+  readonly playerRotation: number;
+  readonly activeControls: readonly Control[];
 }
 
 export interface GameResult {
