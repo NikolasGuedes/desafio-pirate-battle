@@ -50,6 +50,15 @@ test('requires landscape orientation and uses device-appropriate game controls',
   }
 
   await expect(page.getByText('Loading fleet…')).toBeHidden();
+  const arena = page.locator('canvas[aria-label="Pirate Battle game arena"]');
+  await expect(arena).toHaveAttribute('data-player-shots', '0');
+  await page.keyboard.down('Space');
+  await expect(arena).toHaveAttribute('data-aiming', 'fireFront');
+  await page.waitForTimeout(150);
+  await expect(arena).toHaveAttribute('data-player-shots', '0');
+  await page.keyboard.up('Space');
+  await expect(arena).toHaveAttribute('data-aiming', '');
+  await expect(arena).toHaveAttribute('data-player-shots', '1');
   const broadsideIndicator = page.locator('[data-broadside="starboard"]:visible').first();
   const initialRotation = await broadsideIndicator.getAttribute('style');
   await page.keyboard.down('KeyD');
@@ -63,6 +72,7 @@ test('requires landscape orientation and uses device-appropriate game controls',
     const portBroadside = page.locator('[data-broadside="port"]:visible');
     await page.keyboard.down('KeyQ');
     await expect(portBroadside).toHaveAttribute('data-active', 'true');
+    await expect(arena).toHaveAttribute('data-aiming', 'fireLeft');
     await page.keyboard.up('KeyQ');
     await expect(portBroadside).toHaveAttribute('data-active', 'false');
   }
@@ -86,7 +96,9 @@ test('starts and pauses a match without console errors', async ({ page }) => {
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/');
   await page.getByRole('button', { name: 'Play' }).click();
-  await expect(page.locator('canvas[aria-label="Pirate Battle game arena"]')).toBeVisible();
+  const arena = page.locator('canvas[aria-label="Pirate Battle game arena"]');
+  await expect(arena).toBeVisible();
+  await expect(arena).toHaveAttribute('data-scenario', /^(emerald-cay|twin-reefs|broken-atoll)$/);
   await expect(page.getByText('Loading fleet…')).toBeHidden();
   await page.keyboard.press('KeyP');
   await expect(page.getByRole('heading', { name: 'Game paused' })).toBeVisible();
