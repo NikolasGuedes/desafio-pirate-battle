@@ -23,6 +23,7 @@ export function App() {
   const [result, setResult] = useState<MatchRecord | null>(loadLastMatch);
   const [recordsTab, setRecordsTab] = useState<RecordsTab | null>(null);
   const [animateScreenTransition, setAnimateScreenTransition] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const config = useMemo(() => {
     const current = configFromSettings({
       sessionDurationSeconds: settings.sessionDurationSeconds,
@@ -46,6 +47,13 @@ export function App() {
 
   useEffect(() => soundManager.setMasterVolume(settings.soundVolume / 100), [settings.soundVolume]);
 
+  useEffect(() => {
+    const syncFullscreenState = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener('fullscreenchange', syncFullscreenState);
+    syncFullscreenState();
+    return () => document.removeEventListener('fullscreenchange', syncFullscreenState);
+  }, []);
+
   const changeSoundVolume = useCallback((soundVolume: number) => {
     setSettings((current) => {
       const next = { ...current, soundVolume };
@@ -56,6 +64,14 @@ export function App() {
 
   const startGame = () => { setAnimateScreenTransition(true); setRecordsTab(null); setScreen('game'); };
   const goToMenu = () => { setAnimateScreenTransition(true); hidePersistedResult(); setScreen('menu'); };
+  const toggleFullscreen = useCallback(async () => {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
+    } catch {
+      // Fullscreen can be denied by browser/device policy; keep the menu usable.
+    }
+  }, []);
   const handleResult = useCallback((gameResult: GameResult) => {
     const match: MatchRecord = { id: crypto.randomUUID(), playerId, playerName: 'You', completedAt: new Date().toISOString(), score: gameResult.score, durationSeconds: gameResult.durationSeconds, endReason: gameResult.endReason, config: gameResult.config };
     saveCompletedMatch(match);
@@ -82,7 +98,7 @@ export function App() {
 
   return <ScreenTransition screenKey={recordsTab ? `records-${recordsTab}` : 'menu'} animated={animateScreenTransition}><main className="app-shell"><Card className={`menu-card ${recordsTab ? 'menu-with-records' : ''}`} aria-labelledby="game-title">
     {recordsTab ? <h1 className="log-title" id="game-title">Captain’s Log</h1> : <><img className="game-logo" src="/assets/png/retina/ui/menu/title_pirate_battle.png" alt="" /><h1 className="visually-hidden" id="game-title">Pirate Battle</h1><p className="eyebrow">Set sail. Take command.</p></>}
-    {!recordsTab && <div className="actions" aria-label="Main menu"><Button type="button" size="lg" onClick={startGame}>Play</Button><Button type="button" size="lg" sound="uiOpen" variant="secondary" onClick={() => { setAnimateScreenTransition(false); setScreen('options'); }}>Options</Button><Button type="button" size="lg" sound="uiOpen" variant="secondary" onClick={() => { setAnimateScreenTransition(false); setScreen('controls'); }}>Controls</Button></div>}
+    {!recordsTab && <div className="actions" aria-label="Main menu"><Button type="button" size="lg" onClick={startGame}>Play</Button><Button type="button" size="lg" sound="uiOpen" variant="secondary" onClick={() => { setAnimateScreenTransition(false); setScreen('options'); }}>Options</Button><Button type="button" size="lg" sound="uiOpen" variant="secondary" onClick={() => { setAnimateScreenTransition(false); setScreen('controls'); }}>Controls</Button><Button type="button" size="lg" sound="uiOpen" variant="secondary" className="mobile-only" aria-pressed={isFullscreen} onClick={toggleFullscreen}>{isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}</Button></div>}
     <nav className="data-tabs" aria-label="Game records"><Button type="button" sound="uiOpen" variant={recordsTab === 'ranking' ? 'default' : 'secondary'} aria-pressed={recordsTab === 'ranking'} onClick={() => { setAnimateScreenTransition(false); setRecordsTab('ranking'); }}>Ranking</Button><Button type="button" sound="uiOpen" variant={recordsTab === 'history' ? 'default' : 'secondary'} aria-pressed={recordsTab === 'history'} onClick={() => { setAnimateScreenTransition(false); setRecordsTab('history'); }}>Match History</Button></nav>
     {recordsTab && <RecordsPanel key={recordsTab} tab={recordsTab} playerId={playerId} onClose={() => { setAnimateScreenTransition(false); setRecordsTab(null); }} />}
   </Card></main></ScreenTransition>;
