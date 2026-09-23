@@ -147,7 +147,6 @@ function MatchCountdown({ onComplete }: { readonly onComplete: () => void }) {
     return () => window.clearTimeout(timer);
   }, [onComplete, step]);
   return <m.div className="game-overlay countdown-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-    <p>Battle stations</p>
     <AnimatePresence mode="wait"><m.strong
       key={COUNTDOWN_WORDS[step]}
       initial={{ opacity: 0, scale: 0.65, y: 16 }}
