@@ -8,8 +8,7 @@ import type { GameResult } from '../game/types';
 import { GameScreen } from './GameScreen';
 import { OptionsScreen } from './OptionsScreen';
 import { RecordsPanel, type RecordsTab } from './RecordsPanel';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Button, Card } from './PirateUI';
 
 type Screen = 'menu' | 'options' | 'game' | 'result';
 
@@ -63,9 +62,9 @@ export function App() {
   }
 
   return <main className="app-shell"><Card className={`menu-card ${recordsTab ? 'menu-with-records' : ''}`} aria-labelledby="game-title">
-    <p className="eyebrow">Survive the pirate waters</p><img className="game-logo" src="/assets/png/default/ui/menu/title_pirate_battle.png" alt="Pirate Battle" /><h1 className="visually-hidden" id="game-title">Pirate Battle</h1><p className="subtitle">Outmaneuver enemy ships and rule the sea.</p>
+    {recordsTab ? <h1 className="log-title" id="game-title">Captain’s Log</h1> : <><img className="game-logo" src="/assets/png/retina/ui/menu/title_pirate_battle.png" alt="" /><h1 className="visually-hidden" id="game-title">Pirate Battle</h1><p className="eyebrow">Set sail. Take command.</p></>}
     {!recordsTab && <><div className="actions" aria-label="Main menu"><Button type="button" size="lg" onClick={startGame}>Play</Button><Button type="button" size="lg" variant="secondary" onClick={() => setScreen('options')}>Options</Button></div><section className="instructions" aria-labelledby="controls-title"><h2 id="controls-title">Controls</h2><p><kbd>W</kbd> forward · <kbd>A</kbd>/<kbd>D</kbd> turn · <kbd>Space</kbd> fire</p><p><kbd>Q</kbd>/<kbd>E</kbd> broadsides · <kbd>P</kbd> pause</p></section></>}
-    <nav className="data-tabs" aria-label="Game records"><Button type="button" variant="link" onClick={() => setRecordsTab('ranking')}>Ranking</Button><Button type="button" variant="link" onClick={() => setRecordsTab('history')}>Match History</Button></nav>
-    {recordsTab && <RecordsPanel tab={recordsTab} playerId={playerId} onClose={() => setRecordsTab(null)} />}
+    <nav className="data-tabs" aria-label="Game records"><Button type="button" variant={recordsTab === 'ranking' ? 'default' : 'secondary'} aria-pressed={recordsTab === 'ranking'} onClick={() => setRecordsTab('ranking')}>Ranking</Button><Button type="button" variant={recordsTab === 'history' ? 'default' : 'secondary'} aria-pressed={recordsTab === 'history'} onClick={() => setRecordsTab('history')}>Match History</Button></nav>
+    {recordsTab && <RecordsPanel key={recordsTab} tab={recordsTab} playerId={playerId} onClose={() => setRecordsTab(null)} />}
   </Card></main>;
 }

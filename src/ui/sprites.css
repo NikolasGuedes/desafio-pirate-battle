@@ -1,0 +1,186 @@
+/* Atlas panel borders are 32px horizontal / 40px vertical at 1×.
+   Nine-slice rendering preserves the wood corners at every panel size. */
+.pirate-panel {
+  border: 32px solid transparent;
+  border-image: url('/assets/png/default/ui/menu/panel_menu.png') 40 32 fill / 32px / 0 stretch;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+  gap: 0;
+  color: #ffe8b6;
+  text-align: center;
+}
+.app-shell {
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 100svh;
+  padding: 32px 16px;
+  background: linear-gradient(#08212e55, #08212e55), url('/assets/ui_scene_background.png') center / cover fixed;
+}
+.menu-card {
+  min-width: 0;
+  width: min(780px, 100%);
+  min-height: 660px;
+  padding: 36px 56px;
+  justify-content: center;
+}
+.game-logo { width: min(500px, 100%); margin: 0 auto 6px; }
+.canvas-host .game-canvas { width: 100% !important; height: 100% !important; }
+.eyebrow { color: #eed6a3; font-size: 12px; font-weight: 800; letter-spacing: .24em; margin: 0 0 12px; }
+.pirate-panel h1, .pirate-panel h2 {
+  font-family: 'Geist Variable', sans-serif;
+  font-size: clamp(26px, 3vw, 40px);
+  font-weight: 900;
+  line-height: 1.2;
+  text-transform: uppercase;
+  text-shadow: 0 3px 1px #091725;
+  margin: 12px 0 24px;
+}
+.pirate-panel .visually-hidden { margin: 0; }
+.pirate-button {
+  width: 100%;
+  height: 76px;
+  min-height: 0;
+  padding: 12px 28px;
+  border: 0;
+  border-radius: 0;
+  background: url('/assets/png/retina/ui/menu/button_primary_normal.png') center / 100% 100% no-repeat;
+  color: #392811;
+  font-size: clamp(16px, 2vw, 24px);
+  font-weight: 850;
+  text-transform: uppercase;
+  box-shadow: none;
+  transition: filter 120ms;
+  white-space: normal;
+  line-height: 1.1;
+}
+.pirate-button:hover { background: url('/assets/png/retina/ui/menu/button_primary_hover.png') center / 100% 100% no-repeat; }
+.pirate-button:active { background-image: url('/assets/png/retina/ui/menu/button_primary_pressed.png'); }
+.pirate-button-secondary, .pirate-button-secondary:hover {
+  background-image: url('/assets/png/retina/ui/menu/button_secondary_normal.png');
+  color: #fff0cf;
+}
+.pirate-button-secondary:active { background-image: url('/assets/png/retina/ui/menu/button_secondary_pressed.png'); }
+.pirate-button:disabled { filter: grayscale(.8); opacity: .5; }
+.pirate-button:focus-visible, .pirate-round:focus-visible {
+  outline: 3px solid #fff2bf;
+  outline-offset: 4px;
+  box-shadow: 0 0 0 7px #071e2dcc;
+}
+.actions { width: min(330px, 100%); max-width: none; gap: 12px; margin: 18px auto; }
+.actions .pirate-button { min-height: 0; }
+.data-tabs { gap: 20px; margin-top: 22px; }
+.data-tabs .pirate-button { height: 60px; font-size: 15px; max-width: 235px; }
+.instructions { border: 0; padding: 4px 0; }
+.instructions h2 { font-size: 13px; margin: 8px 0; color: #dcc99f; }
+.instructions p { font-size: 12px; color: #dbc9a5; }
+.instructions::before {
+  content: ''; display: block; width: 40px; height: 64px; margin: 4px auto 12px;
+  background: url('/assets/png/retina/ships/ship_17.png') center / contain no-repeat;
+}
+.instructions kbd { background: #101e2b; border-color: #72808b; }
+.options-card { max-width: 780px; }
+.options-card form { width: min(430px, 100%); margin: 0 auto; }
+.options-card label { justify-content: center; flex-wrap: wrap; color: #ddcba5; margin: 20px 0 14px; }
+.options-card label span { width: 100%; font-size: 11px; color: #bac8cc; }
+.option-stepper { display: flex; align-items: center; justify-content: space-between; gap: 12px; max-width: 330px; margin: auto; }
+.option-value { display: flex; justify-content: center; align-items: center; font-size: 24px; font-weight: 800; }
+.options-card .option-value input {
+  width: 82px; padding: 0; text-align: center; font-size: 24px; font-weight: 800;
+  border: 1px solid transparent; background: transparent; box-shadow: none; appearance: textfield;
+}
+.option-value input::-webkit-inner-spin-button, .option-value input::-webkit-outer-spin-button { appearance: none; }
+.options-card .field-help { font-size: 11px; margin: 10px 0 16px; }
+.pirate-round {
+  padding: 0; border: 0; border-radius: 50%; width: 48px; height: 48px; min-height: 48px; flex-shrink: 0;
+  background: url('/assets/png/retina/ui/controls/button_round_normal.png') center / contain no-repeat;
+  box-shadow: none; touch-action: none;
+}
+.pirate-round:hover { background: url('/assets/png/retina/ui/controls/button_round_hover.png') center / contain no-repeat; }
+.pirate-round:active { background-image: url('/assets/png/retina/ui/controls/button_round_pressed.png'); }
+.sprite-icon { width: 50%; height: 50%; object-fit: contain; pointer-events: none; user-select: none; }
+.result-card .eyebrow { font-size: 28px; letter-spacing: 0; }
+.result-card h1 { font-size: 18px; color: #ddcba5; order: 2; margin: 0 0 12px; }
+.result-stats { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
+.result-stats div { padding: 0; background: none; }
+.result-stats div:first-child dt { font-size: 12px; text-transform: uppercase; }
+.result-stats div:first-child dd { font-size: 80px; line-height: 1; color: #ffdb86; }
+.result-stats div:last-child { display: flex; justify-content: center; gap: 8px; align-items: baseline; }
+.result-stats div:last-child dd { font-size: 16px; }
+.result-card .save-status { order: 3; font-size: 12px; }
+.result-card > .actions, .result-card > .retry-button { order: 4; }
+.menu-with-records { width: min(1400px, 100%); min-height: 700px; padding: 12px 32px 24px; }
+.menu-with-records .log-title { margin: 8px 0; }
+.records-panel { margin-top: 16px; min-width: 0; }
+.records-table-wrap { max-height: 340px; overflow: auto; }
+.records-heading h2 { font-size: 16px; margin: 0; }
+.records-heading .pirate-round { width: 36px; height: 36px; min-height: 36px; }
+.records-panel table { border-collapse: separate; border-spacing: 0 7px; }
+.records-panel tbody tr { background: #10212ed9; }
+.records-panel th, .records-panel td { border: 0; padding: 14px; }
+.records-panel th { font-size: 11px; color: #b5c6cf; letter-spacing: .06em; }
+.records-panel td { font-weight: 700; }
+.records-panel td:first-child { border-radius: 7px 0 0 7px; color: #ffda86; }
+.records-panel td:last-child { border-radius: 0 7px 7px 0; color: #b5c6cf; font-size: 12px; }
+.pagination { background: transparent; }
+.pagination .pirate-button { width: 120px; height: 44px; padding: 8px 12px; font-size: 12px; }
+.pagination span { font-size: 12px; text-transform: uppercase; color: #b5c6cf; }
+.records-panel .actions { width: 280px; }
+.records-panel .actions .pirate-button { height: 64px; }
+.game-screen { position: relative; width: 100%; min-height: 100svh; display: flex; flex-direction: column; justify-content: center; padding: 0; }
+.arena-frame { width: min(100vw, calc((100svh - 30px) * 16 / 9)); border: 0; border-radius: 0; box-shadow: none; margin: 0 auto; }
+.game-hud { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); width: calc(100% - 32px); max-width: 1600px; z-index: 3; display: flex; gap: 12px; pointer-events: none; }
+.game-hud > div { padding: 0; background: none; border: 0; min-height: 0; }
+.game-hud .health-stat { margin-right: auto; gap: 8px; }
+.health-stat > .sprite-icon { width: 36px; height: 36px; }
+.sprite-health { position: relative; width: clamp(140px, 23vw, 300px); aspect-ratio: 256 / 48; }
+.sprite-health img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.sprite-health strong { position: absolute; inset: 0; display: grid; place-items: center; font-size: clamp(10px, 1.5vw, 18px); color: white; text-shadow: 0 1px 2px #000; }
+.game-hud .hud-counter { width: clamp(80px, 11vw, 160px); aspect-ratio: 160 / 56; justify-content: center; gap: 8px; background: url('/assets/png/retina/ui/hud/counter_panel.png') center / 100% 100% no-repeat; }
+.hud-counter .sprite-icon { width: 24%; height: 55%; }
+.hud-counter strong { font-size: clamp(12px, 2vw, 24px); }
+.game-hud .hud-button { pointer-events: auto; width: 56px; height: 56px; }
+.touch-controls { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); margin: 0; width: calc(100% - 32px); max-width: 1600px; padding: 0; }
+.touch-group { display: grid; grid-template-columns: repeat(3, 58px); gap: 4px; align-items: end; }
+.touch-group .touch-button { width: 58px; height: 58px; min-height: 58px; }
+.touch-group .touch-button:nth-child(2) { margin-bottom: 44px; }
+.controls-help { position: absolute; bottom: 5px; width: 100%; margin: 0; }
+.game-overlay { position: fixed; background: #06172488; padding: 12px; z-index: 10; }
+.game-overlay:has(.pause-panel) { display: grid; place-items: center; place-content: normal; }
+.pause-panel { width: min(700px, 100%); padding: 64px 24px; min-height: 480px; justify-content: center; }
+.game-overlay .pirate-button { min-width: 0; }
+.pause-panel p { color: #ddcba5; }
+@media (max-width: 720px) {
+  .app-shell { padding: 12px 8px; align-items: center; }
+  .pirate-panel { border-width: 22px; border-image-width: 22px; }
+  .menu-card { padding: 24px 10px; min-height: 560px; }
+  .menu-with-records { min-height: 600px; padding: 16px 0; overflow: visible; }
+  .pirate-button { height: 64px; }
+  .data-tabs { gap: 8px; flex-wrap: wrap; }
+  .data-tabs .pirate-button { width: 46%; padding: 8px 10px; height: 48px; font-size: 11px; }
+  .instructions p { font-size: 10px; }
+  .option-value, .options-card .option-value input { font-size: 22px; }
+  .game-hud { top: 8px; width: calc(100% - 12px); gap: 4px; }
+  .health-stat > .sprite-icon { display: none; }
+  .game-hud .health-stat { gap: 0; }
+  .game-hud .hud-button { width: 44px; height: 44px; min-height: 44px; }
+  .game-hud .hud-counter { gap: 3px; }
+  .touch-controls { bottom: 20px; width: calc(100% - 12px); }
+  .touch-group { grid-template-columns: repeat(3, 44px); gap: 2px; }
+  .touch-group .touch-button { width: 44px; height: 44px; min-height: 44px; }
+  .touch-group .touch-button:nth-child(2) { margin-bottom: 32px; }
+  .pause-panel { min-height: 300px; padding: 20px 8px; }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .app-shell { padding: 8px; }
+  .menu-card { min-height: 0; padding: 16px 30px; }
+  .game-logo { width: 260px; }
+  .instructions::before { display: none; }
+  .pause-panel { min-height: 0; padding: 12px; }
+  .pause-panel h2 { margin: 0 0 8px; font-size: 26px; }
+  .pause-panel .actions { margin: 8px auto 0; gap: 4px; }
+  .pause-panel .pirate-button { height: 56px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pirate-button, .pirate-round { transition: none; }
+}

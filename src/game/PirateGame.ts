@@ -5,7 +5,9 @@ import type { Control, GameResult, HudSnapshot } from './types';
 interface Ship {
   readonly kind: 'player' | 'chaser' | 'shooter';
   readonly view: Sprite;
-  readonly healthBar: Graphics;
+  readonly healthBar: Container;
+  readonly healthFill: Sprite;
+  readonly healthMask: Graphics;
   readonly maxHealth: number;
   health: number;
   radius: number;
@@ -33,6 +35,8 @@ const ASSET = {
   shooter: '/assets/png/default/ships/ship_17.png',
   cannonBall: '/assets/png/default/ship_parts/cannon_ball.png',
   islandTile: '/assets/png/default/tiles/tile_40.png',
+  healthFrame: '/assets/png/default/ui/hud/enemy_health_frame.png',
+  healthFill: '/assets/png/default/ui/hud/enemy_health_fill_green.png',
 } as const;
 const ISLAND = { x: 500, y: 245, width: 256, height: 192 } as const;
 
@@ -164,7 +168,14 @@ export class PirateGame {
     view.anchor.set(0.5);
     view.scale.set(0.62);
     view.position.set(x, y);
-    return { kind, view, healthBar: new Graphics(), maxHealth: health, health, radius, cooldown: 0 };
+    const healthBar = new Container();
+    const frame = Sprite.from(ASSET.healthFrame);
+    const healthFill = Sprite.from(ASSET.healthFill);
+    const healthMask = new Graphics();
+    healthBar.addChild(frame, healthFill, healthMask);
+    healthFill.mask = healthMask;
+    healthBar.scale.set(kind === 'player' ? 0.48 : 0.4);
+    return { kind, view, healthBar, healthFill, healthMask, maxHealth: health, health, radius, cooldown: 0 };
   }
 
   private spawnEnemy(kind?: 'chaser' | 'shooter'): void {
@@ -302,7 +313,7 @@ export class PirateGame {
     if (index < 0) return;
     this.enemies.splice(index, 1);
     enemy.view.destroy();
-    enemy.healthBar.destroy();
+    enemy.healthBar.destroy({ children: true });
     if (score) this.score += 1;
   }
 
@@ -323,11 +334,10 @@ export class PirateGame {
   }
 
   private drawHealth(ship: Ship): void {
-    const width = ship.kind === 'player' ? 62 : 48;
     const ratio = Math.max(0, ship.health / ship.maxHealth);
-    const color = ratio > 0.55 ? 0x45d35a : ratio > 0.25 ? 0xffb633 : 0xef4141;
-    ship.healthBar.clear().roundRect(-width / 2 - 2, -3, width + 4, 10, 4).fill(0x10212a).roundRect(-width / 2, -1, width * ratio, 6, 3).fill(color);
-    ship.healthBar.position.set(ship.view.x, ship.view.y - 48);
+    ship.healthMask.clear().rect(0, 0, ratio === 0 ? 0 : 24 + 112 * ratio, 40).fill(0xffffff);
+    ship.healthFill.tint = ratio > 0.55 ? 0xffffff : ratio > 0.25 ? 0xffcc66 : 0xff5555;
+    ship.healthBar.position.set(ship.view.x - 80 * ship.healthBar.scale.x, Math.max(0, ship.view.y - 48));
   }
 
   private finish(endReason: GameResult['endReason']): void {

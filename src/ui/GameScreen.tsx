@@ -2,9 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { PirateGame } from '../game/PirateGame';
 import type { GameConfig } from '../game/config';
 import type { Control, GameResult, HudSnapshot } from '../game/types';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { Pause } from 'lucide-react';
+import { Button, Card, RoundButton, HullBar, Icon, type SpriteIcon } from './PirateUI';
 
 interface Props {
   readonly config: GameConfig;
@@ -44,11 +42,10 @@ export function GameScreen({ config, onExit, onResult }: Props) {
   return (
     <main className="game-screen">
       <header className="game-hud" aria-label="Match status">
-        <Button className="hud-button" size="icon-lg" type="button" onClick={() => gameRef.current?.togglePause()} aria-label="Pause game"><Pause /></Button>
-        <div className="health-stat"><span>Hull</span><Progress className="hull-progress" value={(hud.health / hud.maxHealth) * 100} aria-label={`${hud.health} hull points`} /><strong>{hud.health}</strong></div>
-        <div><span>Score</span><strong>{hud.score}</strong></div>
-        <div><span>Time</span><strong>{formatTime(hud.remainingSeconds)}</strong></div>
-        <div className="enemy-stat"><span>Enemies</span><strong>{hud.enemyCount}</strong></div>
+        <div className="health-stat"><Icon name="heart" /><HullBar health={hud.health} maxHealth={hud.maxHealth} /></div>
+        <div className="hud-counter" aria-label={`Score: ${hud.score}`}><Icon name="score" /><strong>{hud.score}</strong></div>
+        <div className="hud-counter" aria-label={`Time remaining: ${formatTime(hud.remainingSeconds)}`}><Icon name="time" /><strong>{formatTime(hud.remainingSeconds)}</strong></div>
+        <RoundButton className="hud-button" icon="pause" onClick={() => gameRef.current?.togglePause()} aria-label="Pause game" />
       </header>
 
       <div className="arena-frame">
@@ -57,24 +54,28 @@ export function GameScreen({ config, onExit, onResult }: Props) {
         {error && <div className="game-overlay"><h2>Loading failed</h2><p>{error}</p><Button size="lg" type="button" onClick={onExit}>Main Menu</Button></div>}
         {hud.paused && !error && (
           <div className="game-overlay" role="dialog" aria-modal="true" aria-labelledby="pause-title">
-            <h2 id="pause-title">Game paused</h2>
-            <p>Inputs were cleared. Resume when ready.</p>
+            <Card className="pause-panel">
+            <h2 id="pause-title" aria-label="Game paused">Paused</h2>
+            <p>Ready when you are.</p>
+            <div className="actions">
             <Button size="lg" type="button" onClick={() => gameRef.current?.resume()} autoFocus>Resume</Button>
             <Button size="lg" type="button" variant="secondary" onClick={onExit}>Main Menu</Button>
+            </div>
+            </Card>
           </div>
         )}
       </div>
 
       <div className="touch-controls" aria-label="Touch game controls">
         <div className="touch-group">
-          <HoldButton label="Turn left" icon="↶" onHold={(pressed) => hold('left', pressed)} />
-          <HoldButton label="Forward" icon="↑" onHold={(pressed) => hold('forward', pressed)} />
-          <HoldButton label="Turn right" icon="↷" onHold={(pressed) => hold('right', pressed)} />
+          <HoldButton label="Turn left" icon="turn_left" onHold={(pressed) => hold('left', pressed)} />
+          <HoldButton label="Forward" icon="forward" onHold={(pressed) => hold('forward', pressed)} />
+          <HoldButton label="Turn right" icon="turn_right" onHold={(pressed) => hold('right', pressed)} />
         </div>
         <div className="touch-group">
-          <HoldButton label="Fire left broadside" icon="≪" onHold={(pressed) => hold('fireLeft', pressed)} />
-          <HoldButton label="Fire front cannon" icon="●" onHold={(pressed) => hold('fireFront', pressed)} />
-          <HoldButton label="Fire right broadside" icon="≫" onHold={(pressed) => hold('fireRight', pressed)} />
+          <HoldButton label="Fire left broadside" icon="fire_left" onHold={(pressed) => hold('fireLeft', pressed)} />
+          <HoldButton label="Fire front cannon" icon="fire_front" onHold={(pressed) => hold('fireFront', pressed)} />
+          <HoldButton label="Fire right broadside" icon="fire_right" onHold={(pressed) => hold('fireRight', pressed)} />
         </div>
       </div>
       <p className="controls-help">W/↑ move · A/D or ←/→ turn · Space front cannon · Q/E broadsides · P/Esc pause</p>
@@ -82,19 +83,21 @@ export function GameScreen({ config, onExit, onResult }: Props) {
   );
 }
 
-function HoldButton({ label, icon, onHold }: { readonly label: string; readonly icon: string; readonly onHold: (pressed: boolean) => void }) {
+function HoldButton({ label, icon, onHold }: { readonly label: string; readonly icon: SpriteIcon; readonly onHold: (pressed: boolean) => void }) {
   return (
-    <Button
+    <RoundButton
       className="touch-button"
-      variant="secondary"
-      size="icon-lg"
+      icon={icon}
       type="button"
       aria-label={label}
       onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); onHold(true); }}
       onPointerUp={() => onHold(false)}
       onPointerCancel={() => onHold(false)}
       onLostPointerCapture={() => onHold(false)}
-    >{icon}</Button>
+      onKeyDown={(event) => { if (event.key === 'Enter') onHold(true); }}
+      onKeyUp={() => onHold(false)}
+      onBlur={() => onHold(false)}
+    />
   );
 }
 
