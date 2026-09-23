@@ -1,4 +1,4 @@
-import { Application, Assets, Container, Graphics, Sprite, Texture } from 'pixi.js';
+import { Application, Assets, BlurFilter, Container, Graphics, Sprite, Texture, TilingSprite } from 'pixi.js';
 import type { GameConfig } from './config';
 import { pickArenaScenario, SCENARIO_TILE_PATHS } from './scenarios';
 import type { ArenaScenario, IslandTemplate } from './scenarios';
@@ -34,6 +34,13 @@ interface WakeRipple {
   age: number;
 }
 
+interface ExplosionEffect {
+  readonly view: Sprite;
+  readonly duration: number;
+  readonly scale: number;
+  age: number;
+}
+
 interface Callbacks {
   readonly onHud: (snapshot: HudSnapshot) => void;
   readonly onResult: (result: GameResult) => void;
@@ -45,6 +52,10 @@ const ASSET = {
   chaser: '/assets/png/default/ships/ship_9.png',
   shooter: '/assets/png/default/ships/ship_17.png',
   cannonBall: '/assets/png/default/ship_parts/cannon_ball.png',
+  water: '/assets/png/default/tiles/tile_73.png',
+  explosion1: '/assets/png/default/effects/explosion_1.png',
+  explosion2: '/assets/png/default/effects/explosion_2.png',
+  explosion3: '/assets/png/default/effects/explosion_3.png',
   healthFrame: '/assets/png/default/ui/hud/enemy_health_frame.png',
   healthFill: '/assets/png/default/ui/hud/enemy_health_fill_green.png',
 } as const;
@@ -54,6 +65,7 @@ export class PirateGame {
   private readonly world = new Container();
   private readonly wakeLayer = new Container();
   private readonly projectileTrailLayer = new Container();
+  private readonly combatEffectsLayer = new Container();
   private readonly aimLayer = new Container();
   private readonly aimIndicator = new Graphics();
   private readonly healthLayer = new Container();
@@ -62,7 +74,9 @@ export class PirateGame {
   private readonly enemies: Ship[] = [];
   private readonly projectiles: Projectile[] = [];
   private readonly wakeRipples: WakeRipple[] = [];
+  private readonly explosions: ExplosionEffect[] = [];
   private readonly scenario: ArenaScenario = pickArenaScenario();
+  private ocean!: TilingSprite;
   private player!: Ship;
   private playerVelocity = { x: 0, y: 0 };
   private playerAngularVelocity = 0;
@@ -116,7 +130,7 @@ export class PirateGame {
     this.spawnEnemy('chaser');
     this.spawnEnemy('shooter');
     this.aimLayer.addChild(this.aimIndicator);
-    this.app.stage.addChild(this.world, this.aimLayer, this.healthLayer);
+    this.app.stage.addChild(this.world, this.combatEffectsLayer, this.aimLayer, this.healthLayer);
 
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('keyup', this.onKeyUp);
@@ -180,11 +194,36 @@ export class PirateGame {
   }
 
   private createArena(): void {
-    this.world.addChild(new Graphics().rect(0, 0, this.config.arena.width, this.config.arena.height).fill(0x1596b4));
+    this.world.addChild(new Graphics().rect(0, 0, this.config.arena.width, this.config.arena.height).fill(0x117f9f));
+    this.ocean = new TilingSprite({
+      texture: Texture.from(ASSET.water),
+      width: this.config.arena.width,
+      height: this.config.arena.height,
+    });
+    this.ocean.alpha = 0.78;
+    this.ocean.tint = 0x76d6e5;
+    this.world.addChild(this.ocean);
+
+    const shallowWater = new Container();
+    const shallowShapes = new Graphics();
+    for (const island of this.scenario.islands) {
+      const width = island.columns * 64;
+      const height = island.rows * 64;
+      shallowShapes
+        .roundRect(island.x - 66, island.y - 66, width + 132, height + 132, 54)
+        .fill({ color: 0xa4f2ef, alpha: 0.13 })
+        .roundRect(island.x - 38, island.y - 38, width + 76, height + 76, 38)
+        .fill({ color: 0xc6fbef, alpha: 0.2 });
+    }
+    shallowShapes.filters = [new BlurFilter({ strength: 22, quality: 2, kernelSize: 7 })];
+    shallowWater.addChild(shallowShapes);
+    shallowWater.cacheAsTexture({ resolution: 1, antialias: true });
+    this.world.addChild(shallowWater);
+
     const waves = new Graphics();
     for (let y = 32; y < this.config.arena.height; y += 48) {
       for (let x = (y / 48) % 2 ? 10 : 45; x < this.config.arena.width; x += 110) {
-        waves.moveTo(x, y).quadraticCurveTo(x + 18, y - 8, x + 38, y).stroke({ color: 0x8ce2ea, alpha: 0.22, width: 3 });
+        waves.moveTo(x, y).quadraticCurveTo(x + 18, y - 8, x + 38, y).stroke({ color: 0xd0f8f5, alpha: 0.13, width: 2 });
       }
     }
     this.world.addChild(waves);
@@ -261,6 +300,8 @@ export class PirateGame {
     this.updateEnemies(dt);
     this.updateProjectiles(dt);
     this.updateWakeRipples(dt);
+    this.updateExplosions(dt);
+    this.updateWater(dt);
     this.updatePlayerDamageCooldown(dt);
     this.player.cooldown = Math.max(0, this.player.cooldown - dt);
     for (const enemy of this.enemies) enemy.cooldown = Math.max(0, enemy.cooldown - dt);
@@ -340,6 +381,7 @@ export class PirateGame {
         enemy.cooldown = 1.7;
       }
       if (enemy.kind === 'chaser' && distance < enemy.radius + this.player.radius) {
+        this.spawnExplosion((enemy.view.x + this.player.view.x) / 2, (enemy.view.y + this.player.view.y) / 2, 1.05);
         this.damagePlayer(30);
         this.removeEnemy(enemy, false);
         continue;
@@ -366,10 +408,12 @@ export class PirateGame {
         const target = this.enemies.find((enemy) => this.distance(projectile.view.x, projectile.view.y, enemy.view.x, enemy.view.y) < projectile.radius + enemy.radius);
         if (target) {
           target.health -= this.config.projectile.damage;
+          this.spawnExplosion(target.view.x, target.view.y, target.health <= 0 ? 1.3 : 0.88);
           this.removeProjectile(projectile);
           if (target.health <= 0) this.removeEnemy(target, true);
         }
       } else if (this.distance(projectile.view.x, projectile.view.y, this.player.view.x, this.player.view.y) < projectile.radius + this.player.radius) {
+        this.spawnExplosion(this.player.view.x, this.player.view.y, 0.95);
         this.removeProjectile(projectile);
         this.damagePlayer(this.config.projectile.damage);
       }
@@ -503,6 +547,39 @@ export class PirateGame {
         .ellipse(0, 0, 9 + progress * 18, 3 + progress * 7)
         .stroke({ color: 0xc9f7f2, alpha: (1 - progress) * 0.58, width: 2 });
     }
+  }
+
+  private spawnExplosion(x: number, y: number, scale: number): void {
+    const view = Sprite.from(ASSET.explosion3);
+    view.anchor.set(0.5);
+    view.position.set(x, y);
+    view.rotation = Math.random() * Math.PI * 2;
+    view.scale.set(scale * 0.72);
+    this.combatEffectsLayer.addChild(view);
+    this.explosions.push({ view, duration: 0.56, scale, age: 0 });
+  }
+
+  private updateExplosions(dt: number): void {
+    const frames = [ASSET.explosion3, ASSET.explosion2, ASSET.explosion1, ASSET.explosion1, ASSET.explosion2] as const;
+    for (const explosion of [...this.explosions]) {
+      explosion.age += dt;
+      const progress = explosion.age / explosion.duration;
+      if (progress >= 1) {
+        this.explosions.splice(this.explosions.indexOf(explosion), 1);
+        explosion.view.destroy();
+        continue;
+      }
+      const frame = frames[Math.min(frames.length - 1, Math.floor(progress * frames.length))]!;
+      explosion.view.texture = Texture.from(frame);
+      const pulse = 0.86 + Math.sin(progress * Math.PI) * 0.36;
+      explosion.view.scale.set(explosion.scale * pulse);
+      explosion.view.alpha = progress < 0.68 ? 1 : 1 - (progress - 0.68) / 0.32;
+    }
+  }
+
+  private updateWater(dt: number): void {
+    this.ocean.tilePosition.x += dt * 2.4;
+    this.ocean.tilePosition.y += dt * 1.15;
   }
 
   private damagePlayer(amount: number): void {
