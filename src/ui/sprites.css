@@ -25,7 +25,22 @@
   padding: 36px 56px;
   justify-content: center;
 }
+.menu-brand { position: relative; width: 100%; }
 .game-logo { width: min(500px, 100%); margin: 0 auto 6px; }
+.fullscreen-button {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 150px;
+  height: 46px;
+  padding: 7px 18px;
+  font-size: 12px;
+  transform: translateY(-50%);
+}
+.fullscreen-glyph { font-size: 20px; line-height: 1; }
 .canvas-host .game-canvas { width: 100% !important; height: 100% !important; }
 .eyebrow { color: #eed6a3; font-size: 12px; font-weight: 800; letter-spacing: .24em; margin: 0 0 12px; }
 .pirate-panel h1, .pirate-panel h2 {
@@ -404,10 +419,19 @@
     column-gap: 20px;
     align-items: center;
   }
-  .menu-card:not(.options-card):not(.controls-card):not(.result-card):not(.menu-with-records) .game-logo {
+  .menu-card:not(.options-card):not(.controls-card):not(.result-card):not(.menu-with-records) .menu-brand {
     grid-area: logo;
+  }
+  .menu-card:not(.options-card):not(.controls-card):not(.result-card):not(.menu-with-records) .game-logo {
     width: min(270px, 44vw);
     margin: -4px auto -2px;
+  }
+  .menu-card:not(.options-card):not(.controls-card):not(.result-card):not(.menu-with-records) .fullscreen-button {
+    right: clamp(0px, 2vw, 18px);
+    width: 142px;
+    height: 40px;
+    padding: 6px 14px;
+    font-size: 11px;
   }
   .menu-card:not(.options-card):not(.controls-card):not(.result-card):not(.menu-with-records) .eyebrow {
     grid-area: tagline;

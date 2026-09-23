@@ -11,8 +11,18 @@ test('opens the main menu with controls for the current device', async ({ page }
   await expect(mobileControls).toBeVisible();
   await expect(keyboardControls).toBeHidden();
   if (testInfo.project.name === 'mobile-chromium') {
+    const fullscreen = page.getByRole('button', { name: 'Fullscreen' });
+    const logo = page.locator('.game-logo');
+    await expect(fullscreen).toBeVisible();
+    const fullscreenBox = await fullscreen.boundingBox();
+    const logoBox = await logo.boundingBox();
+    expect(fullscreenBox).not.toBeNull();
+    expect(logoBox).not.toBeNull();
+    expect(fullscreenBox!.width).toBeLessThan(160);
+    expect(fullscreenBox!.x).toBeGreaterThan(logoBox!.x + logoBox!.width);
     return;
   } else {
+    await expect(page.getByRole('button', { name: 'Fullscreen' })).toBeHidden();
     await mobileControls.click();
     await expect(keyboardControls).toBeVisible();
     await expect(page.getByText('Movement joystick', { exact: true })).toBeHidden();
